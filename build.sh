@@ -14,4 +14,4 @@ fi
 cd build
 
 
-$CC $CXXFLAGS $SRC -lSDL2 -o pacman
+$CC $CXXFLAGS $SRC -lSDL2 -framework OpenGL -o pacman
