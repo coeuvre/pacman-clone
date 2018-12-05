@@ -3,5 +3,5 @@
 build:
 		./build.sh
 
-run: build
+run:
 		./run.sh
