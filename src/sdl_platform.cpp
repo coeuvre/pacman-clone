@@ -25,8 +25,14 @@ struct sdl_game
 };
 
 static void
-SDLLoadGame(sdl_game *Game)
+SDLLoadGame(platform *Platform, sdl_game *Game)
 {
+    if (Game->Library)
+    {
+        SDL_UnloadObject(Game->Library);
+        *Game = {};
+    }
+
     Game->Library = SDL_LoadObject("libgame.dylib");
     if (Game->Library)
     {
@@ -36,6 +42,16 @@ SDLLoadGame(sdl_game *Game)
     }
 
     Game->IsLoaded = Game->Library && Game->Init && Game->Update && Game->Render;
+
+    if (Game->IsLoaded)
+    {
+        Game->Init(Platform);
+    }
+    else
+    {
+        // SDLLoadGame failed
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s\n", SDL_GetError());
+    }
 }
 
 static void
@@ -51,109 +67,105 @@ SDLRunMainLoop(SDL_Window *Window)
     GLuint TextureHandle;
     glGenTextures(1, &TextureHandle);
 
+    platform Platform = {};
+    SDLInitPlatform(&Platform);
+
     sdl_game Game = {};
-    SDLLoadGame(&Game);
+    SDLLoadGame(&Platform, &Game);
 
-    if (Game.IsLoaded)
+    game_input Input = {};
+    Input.DeltaTime = 0.016667F;
+
+    Uint64 Frequency = SDL_GetPerformanceFrequency();
+    Uint64 CounterPerFrame = (Uint64) (Input.DeltaTime * Frequency);
+    Uint64 CurrentCounter = SDL_GetPerformanceCounter();
+    Uint64 LastCounter = CurrentCounter;
+
+    bool IsRunning = true;
+    while (IsRunning)
     {
-        platform Platform = {};
-        SDLInitPlatform(&Platform);
-        Game.Init(&Platform);
-
-        game_input Input = {};
-        Input.DeltaTime = 0.016667F;
-
-        Uint64 Frequency = SDL_GetPerformanceFrequency();
-        Uint64 CounterPerFrame = (Uint64) (Input.DeltaTime * Frequency);
-        Uint64 CurrentCounter = SDL_GetPerformanceCounter();
-        Uint64 LastCounter = CurrentCounter;
-
-        bool IsRunning = true;
-        while (IsRunning)
+        SDL_Event Event;
+        while (SDL_PollEvent(&Event))
         {
-            SDL_Event Event;
-            while (SDL_PollEvent(&Event))
+            switch (Event.type)
             {
-                switch (Event.type)
+                case SDL_QUIT:
                 {
-                    case SDL_QUIT:
-                    {
-                        IsRunning = false;
-                        break;
-                    }
+                    IsRunning = false;
+                    break;
+                }
 
-                    default:
-                    {
-                    }
+                default:
+                {
                 }
             }
-
-            Game.Update(&Input);
-
-            // glBindTexture(GL_TEXTURE_2D, TextureHandle);
-            // //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Pixels);
-            // glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-            // glViewport(0, 0, WindowWidth, WindowHeight);
-
-            // glEnable(GL_TEXTURE_2D);
-
-            glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            Game.Render();
-            // glMatrixMode(GL_TEXTURE);
-            // glLoadIdentity();
-
-            // glMatrixMode(GL_MODELVIEW);
-            // glLoadIdentity();
-            // glMatrixMode(GL_PROJECTION);
-            // glLoadIdentity();
-
-            // f32 P = 0.9f;
-
-            // glBegin(GL_TRIANGLES);
-            // glTexCoord2f(0.0f, 0.0f);
-            // glVertex2f(-P, -P);
-
-            // glTexCoord2f(1.0f, 0.0f);
-            // glVertex2f(P, -P);
-
-            // glTexCoord2f(1.0f, 1.0f);
-            // glVertex2f(P, P);
-
-            // glTexCoord2f(0.0f, 0.0f);
-            // glVertex2f(-P, -P);
-
-            // glTexCoord2f(1.0f, 1.0f);
-            // glVertex2f(P, P);
-
-            // glTexCoord2f(0.0f, 1.0f);
-            // glVertex2f(-P, P);
-            // glEnd();
-
-            SDL_GL_SwapWindow(Window);
-
-            CurrentCounter = SDL_GetPerformanceCounter();
-            Uint64 FrameCostCounter = CurrentCounter - LastCounter;
-            if (CounterPerFrame > FrameCostCounter)
-            {
-                Uint32 SleepMS = (Uint32) ((CounterPerFrame - FrameCostCounter) * 1000 / Frequency);
-                if (SleepMS > 0)
-                {
-                    SDL_Delay(SleepMS);
-                }
-            }
-
-            CurrentCounter = SDL_GetPerformanceCounter();
-            Uint32 FrameTime = (Uint32) ((CurrentCounter - LastCounter) * 1000 / Frequency);
-            LastCounter = CurrentCounter;
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "FrameTime %ums\n", FrameTime);
         }
-    }
-    else
-    {
-        // TODO: SDLLoadGame failed
+
+        // Hot reload game code every frame
+        // TODO: Only reload when the game code has been changed
+        SDLLoadGame(&Platform, &Game);
+
+        Game.Update(&Input);
+
+        // glBindTexture(GL_TEXTURE_2D, TextureHandle);
+        // //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Pixels);
+        // glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+        // glViewport(0, 0, WindowWidth, WindowHeight);
+
+        // glEnable(GL_TEXTURE_2D);
+
+        glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        Game.Render();
+        // glMatrixMode(GL_TEXTURE);
+        // glLoadIdentity();
+
+        // glMatrixMode(GL_MODELVIEW);
+        // glLoadIdentity();
+        // glMatrixMode(GL_PROJECTION);
+        // glLoadIdentity();
+
+        // f32 P = 0.9f;
+
+        // glBegin(GL_TRIANGLES);
+        // glTexCoord2f(0.0f, 0.0f);
+        // glVertex2f(-P, -P);
+
+        // glTexCoord2f(1.0f, 0.0f);
+        // glVertex2f(P, -P);
+
+        // glTexCoord2f(1.0f, 1.0f);
+        // glVertex2f(P, P);
+
+        // glTexCoord2f(0.0f, 0.0f);
+        // glVertex2f(-P, -P);
+
+        // glTexCoord2f(1.0f, 1.0f);
+        // glVertex2f(P, P);
+
+        // glTexCoord2f(0.0f, 1.0f);
+        // glVertex2f(-P, P);
+        // glEnd();
+
+        SDL_GL_SwapWindow(Window);
+
+        CurrentCounter = SDL_GetPerformanceCounter();
+        Uint64 FrameCostCounter = CurrentCounter - LastCounter;
+        if (CounterPerFrame > FrameCostCounter)
+        {
+            Uint32 SleepMS = (Uint32) ((CounterPerFrame - FrameCostCounter) * 1000 / Frequency);
+            if (SleepMS > 0)
+            {
+                SDL_Delay(SleepMS);
+            }
+        }
+
+        CurrentCounter = SDL_GetPerformanceCounter();
+        float FrameTime = (CurrentCounter - LastCounter) * 1000.0F / Frequency;
+        LastCounter = CurrentCounter;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "FrameTime %.2fms\n", FrameTime);
     }
 }
 
@@ -190,25 +202,23 @@ main(int argc, char *argv[])
             {
                 if (SDL_GL_SetSwapInterval(1) == 0)
                 {
-                    printf("%s\n", glGetString(GL_VERSION));
-
                     SDLRunMainLoop(Window);
                 }
                 else
                 {
-                    // NOTE: SDL_GL_SwapInterval failed
+                    // SDL_GL_SwapInterval failed
                     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
                 }
             }
             else
             {
-                // NOTE: SDL_GL_CreateContext failed
+                // SDL_GL_CreateContext failed
                 SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
             }
         }
         else
         {
-            // NOTE: SDL_CreateWindow failed
+            // SDL_CreateWindow failed
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
         }
 
@@ -216,7 +226,7 @@ main(int argc, char *argv[])
     }
     else
     {
-        // NOTE: SDL_Init failed
+        // SDL_Init failed
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
     }
 
