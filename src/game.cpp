@@ -4,8 +4,9 @@
 
 platform *Platform;
 
-struct game_state {
-    u32 Counter;
+struct game_state
+{
+    uint32_t Counter;
 };
 
 static void
@@ -14,16 +15,16 @@ InitGameState(game_state *GameState)
     GameState->Counter = 0;
 }
 
-extern "C" void
+extern "C" EXPORT void
 UpdateAndRenderGame(platform *Platform_)
 {
     Platform = Platform_;
-    game_state *GameState = (game_state *)Platform->GameState;
+    game_state *GameState = (game_state *) Platform->GameState;
     if (!GameState)
     {
         // NOTE: Init game state here
-        Platform->GameState = Platform->Allocate(10000);
-        GameState = (game_state *)Platform->GameState;
+        Platform->GameState = Platform->AllocateMemory(10000);
+        GameState = (game_state *) Platform->GameState;
         InitGameState(GameState);
     }
 

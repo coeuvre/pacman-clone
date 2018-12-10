@@ -5,14 +5,14 @@
 extern "C" {
 #endif
 
-#include "types.h"
+#include "defs.h"
 
-typedef void *platform_allocate_fn(usize Size);
-typedef void platform_deallocate_fn(void *Ptr);
+typedef void *platform_allocate_memory_fn(size_t Size);
+typedef void platform_deallocate_memory_fn(void *Ptr);
 
 typedef struct platform {
-    platform_allocate_fn *Allocate;
-    platform_deallocate_fn *Deallocate;
+    platform_allocate_memory_fn *AllocateMemory;
+    platform_deallocate_memory_fn *DeallocateMemory;
 
     void *GameState;
 } platform;

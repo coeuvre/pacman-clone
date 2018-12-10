@@ -9,7 +9,8 @@ extern "C" {
 
 extern platform *Platform;
 
-void UpdateAndRenderGame(platform *Platform);
+EXPORT void
+UpdateAndRenderGame(platform *Platform);
 
 #ifdef __cplusplus
 }

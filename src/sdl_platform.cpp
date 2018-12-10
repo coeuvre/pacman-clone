@@ -4,7 +4,7 @@
 #include <SDL2/SDL_opengl.h>
 
 static void *
-SDLAllocate(usize Size)
+SDLAllocate(size_t Size)
 {
     return malloc(Size);
 }
@@ -15,8 +15,9 @@ SDLDeallocate(void *Ptr)
     free(Ptr);
 }
 
-struct sdl_game {
-    b32 IsLoaded;
+struct sdl_game
+{
+    bool IsLoaded;
     void *Library;
     update_and_render_game_fn *UpdateAndRender;
 };
@@ -27,7 +28,7 @@ SDLLoadGame(sdl_game *Game)
     Game->Library = SDL_LoadObject("libgame.dylib");
     if (Game->Library)
     {
-        Game->UpdateAndRender = (update_and_render_game_fn *)SDL_LoadFunction(Game->Library, "UpdateAndRenderGame");
+        Game->UpdateAndRender = (update_and_render_game_fn *) SDL_LoadFunction(Game->Library, "UpdateAndRenderGame");
         if (!Game->UpdateAndRender)
         {
             // TODO: Failed to load UpdateAndRenderGame
@@ -50,16 +51,15 @@ SDLRunMainLoop(SDL_Window *Window, SDL_GLContext GLContext, int WindowWidth, int
     glGenTextures(1, &TextureHandle);
 
     platform Platform = {};
-    Platform.Allocate = &SDLAllocate;
-    Platform.Deallocate = &SDLDeallocate;
+    Platform.AllocateMemory = &SDLAllocate;
+    Platform.DeallocateMemory = &SDLDeallocate;
 
     sdl_game Game = {};
     SDLLoadGame(&Game);
 
     if (Game.IsLoaded)
     {
-
-        b32 IsRunning = true;
+        bool IsRunning = true;
         while (IsRunning)
         {
             SDL_Event Event;
@@ -70,7 +70,8 @@ SDLRunMainLoop(SDL_Window *Window, SDL_GLContext GLContext, int WindowWidth, int
                     case SDL_QUIT:
                     {
                         IsRunning = false;
-                    } break;
+                        break;
+                    }
 
                     default:
                     {
@@ -88,8 +89,8 @@ SDLRunMainLoop(SDL_Window *Window, SDL_GLContext GLContext, int WindowWidth, int
 
             // glEnable(GL_TEXTURE_2D);
 
-            // glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
-            // glClear(GL_COLOR_BUFFER_BIT);
+            glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
 
             // glMatrixMode(GL_TEXTURE);
             // glLoadIdentity();
@@ -133,7 +134,8 @@ SDLRunMainLoop(SDL_Window *Window, SDL_GLContext GLContext, int WindowWidth, int
 int
 main(int argc, char *argv[])
 {
-    (void)argc; (void)argv;
+    (void) argc;
+    (void) argv;
 
     int WindowWidth = 1280;
     int WindowHeight = 720;
