@@ -7,10 +7,11 @@ extern "C" {
 
 #include "platform_game_bridge.h"
 
-extern platform *Platform;
+extern platform *GlobalPlatform;
 
-EXPORT void
-UpdateAndRenderGame(platform *Platform);
+EXPORT GAME_INIT(Init);
+EXPORT GAME_UPDATE(Update);
+EXPORT GAME_RENDER(Render);
 
 #ifdef __cplusplus
 }

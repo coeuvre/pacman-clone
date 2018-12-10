@@ -4,13 +4,13 @@
 #include <SDL2/SDL_opengl.h>
 
 static void *
-SDLAllocate(size_t Size)
+SDLAllocateMemory(size_t Size)
 {
     return malloc(Size);
 }
 
 static void
-SDLDeallocate(void *Ptr)
+SDLDeallocateMemory(void *Ptr)
 {
     free(Ptr);
 }
@@ -19,7 +19,9 @@ struct sdl_game
 {
     bool IsLoaded;
     void *Library;
-    update_and_render_game_fn *UpdateAndRender;
+    game_init_fn *Init;
+    game_update_fn *Update;
+    game_render_fn *Render;
 };
 
 static void
@@ -28,37 +30,44 @@ SDLLoadGame(sdl_game *Game)
     Game->Library = SDL_LoadObject("libgame.dylib");
     if (Game->Library)
     {
-        Game->UpdateAndRender = (update_and_render_game_fn *) SDL_LoadFunction(Game->Library, "UpdateAndRenderGame");
-        if (!Game->UpdateAndRender)
-        {
-            // TODO: Failed to load UpdateAndRenderGame
-            printf("%s\n", SDL_GetError());
-        }
-    }
-    else
-    {
-        // TODO: Failed to load game library
-        printf("%s\n", SDL_GetError());
+        Game->Init = (game_init_fn *) SDL_LoadFunction(Game->Library, "Init");
+        Game->Update = (game_update_fn *) SDL_LoadFunction(Game->Library, "Update");
+        Game->Render = (game_render_fn *) SDL_LoadFunction(Game->Library, "Render");
     }
 
-    Game->IsLoaded = Game->Library && Game->UpdateAndRender;
+    Game->IsLoaded = Game->Library && Game->Init && Game->Update && Game->Render;
 }
 
 static void
-SDLRunMainLoop(SDL_Window *Window, SDL_GLContext GLContext, int WindowWidth, int WindowHeight)
+SDLInitPlatform(platform *Platform)
+{
+    Platform->AllocateMemory = &SDLAllocateMemory;
+    Platform->DeallocateMemory = &SDLDeallocateMemory;
+}
+
+static void
+SDLRunMainLoop(SDL_Window *Window)
 {
     GLuint TextureHandle;
     glGenTextures(1, &TextureHandle);
-
-    platform Platform = {};
-    Platform.AllocateMemory = &SDLAllocate;
-    Platform.DeallocateMemory = &SDLDeallocate;
 
     sdl_game Game = {};
     SDLLoadGame(&Game);
 
     if (Game.IsLoaded)
     {
+        platform Platform = {};
+        SDLInitPlatform(&Platform);
+        Game.Init(&Platform);
+
+        game_input Input = {};
+        Input.DeltaTime = 0.016667F;
+
+        Uint64 Frequency = SDL_GetPerformanceFrequency();
+        Uint64 CounterPerFrame = (Uint64) (Input.DeltaTime * Frequency);
+        Uint64 CurrentCounter = SDL_GetPerformanceCounter();
+        Uint64 LastCounter = CurrentCounter;
+
         bool IsRunning = true;
         while (IsRunning)
         {
@@ -79,7 +88,7 @@ SDLRunMainLoop(SDL_Window *Window, SDL_GLContext GLContext, int WindowWidth, int
                 }
             }
 
-            Game.UpdateAndRender(&Platform);
+            Game.Update(&Input);
 
             // glBindTexture(GL_TEXTURE_2D, TextureHandle);
             // //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Pixels);
@@ -89,9 +98,10 @@ SDLRunMainLoop(SDL_Window *Window, SDL_GLContext GLContext, int WindowWidth, int
 
             // glEnable(GL_TEXTURE_2D);
 
-            glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+            glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
             glClear(GL_COLOR_BUFFER_BIT);
 
+            Game.Render();
             // glMatrixMode(GL_TEXTURE);
             // glLoadIdentity();
 
@@ -123,6 +133,22 @@ SDLRunMainLoop(SDL_Window *Window, SDL_GLContext GLContext, int WindowWidth, int
             // glEnd();
 
             SDL_GL_SwapWindow(Window);
+
+            CurrentCounter = SDL_GetPerformanceCounter();
+            Uint64 FrameCostCounter = CurrentCounter - LastCounter;
+            if (CounterPerFrame > FrameCostCounter)
+            {
+                Uint32 SleepMS = (Uint32) ((CounterPerFrame - FrameCostCounter) * 1000 / Frequency);
+                if (SleepMS > 0)
+                {
+                    SDL_Delay(SleepMS);
+                }
+            }
+
+            CurrentCounter = SDL_GetPerformanceCounter();
+            Uint32 FrameTime = (Uint32) ((CurrentCounter - LastCounter) * 1000 / Frequency);
+            LastCounter = CurrentCounter;
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "FrameTime %ums\n", FrameTime);
         }
     }
     else
@@ -140,52 +166,58 @@ main(int argc, char *argv[])
     int WindowWidth = 1280;
     int WindowHeight = 720;
 
+    SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
+
     if (SDL_Init(SDL_INIT_VIDEO) == 0)
     {
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
         SDL_Window *Window = SDL_CreateWindow(
             "PacMan",
             SDL_WINDOWPOS_CENTERED,
             SDL_WINDOWPOS_CENTERED,
             WindowWidth,
             WindowHeight,
-            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
+            SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
         if (Window)
         {
             SDL_GLContext GLContext = SDL_GL_CreateContext(Window);
 
             if (GLContext)
             {
-                if (SDL_GL_MakeCurrent(Window, GLContext) == 0)
+                if (SDL_GL_SetSwapInterval(1) == 0)
                 {
-                    if (SDL_GL_SetSwapInterval(1) == 0)
-                    {
-                        SDLRunMainLoop(Window, GLContext, WindowWidth, WindowHeight);
-                    }
-                    else
-                    {
-                        // TODO: SDL_GL_SwapWindow failed
-                    }
+                    printf("%s\n", glGetString(GL_VERSION));
+
+                    SDLRunMainLoop(Window);
                 }
                 else
                 {
-                    // TODO: SDL_GL_MakeCurrent failed
+                    // NOTE: SDL_GL_SwapInterval failed
+                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
                 }
             }
             else
             {
-                // TODO: SDL_GL_CreateContext failed
+                // NOTE: SDL_GL_CreateContext failed
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
             }
         }
         else
         {
-            // TODO: SDL_CreateWindow failed
+            // NOTE: SDL_CreateWindow failed
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
         }
 
         SDL_Quit();
     }
     else
     {
-        // TODO: SDL_Init failed
+        // NOTE: SDL_Init failed
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
     }
 
     return 0;

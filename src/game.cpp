@@ -2,33 +2,36 @@
 
 #include <stdio.h>
 
-platform *Platform;
+platform *GlobalPlatform;
 
 struct game_state
 {
-    uint32_t Counter;
+    float Counter;
 };
 
 static void
 InitGameState(game_state *GameState)
 {
-    GameState->Counter = 0;
+    GameState->Counter = 0.0F;
 }
 
-extern "C" EXPORT void
-UpdateAndRenderGame(platform *Platform_)
+extern "C" EXPORT GAME_INIT(Init)
 {
-    Platform = Platform_;
-    game_state *GameState = (game_state *) Platform->GameState;
-    if (!GameState)
+    GlobalPlatform = Platform;
+    if (!Platform->GameState)
     {
-        // NOTE: Init game state here
-        Platform->GameState = Platform->AllocateMemory(10000);
-        GameState = (game_state *) Platform->GameState;
-        InitGameState(GameState);
+        GlobalPlatform->GameState = GlobalPlatform->AllocateMemory(sizeof(game_state));
+        InitGameState((game_state *) GlobalPlatform->GameState);
     }
+}
 
-    GameState->Counter += 1;
+extern "C" EXPORT GAME_UPDATE(Update)
+{
+    game_state *GameState = (game_state *) GlobalPlatform->GameState;
 
-    printf("%d\n", GameState->Counter);
+    GameState->Counter += Input->DeltaTime;
+}
+
+extern "C" EXPORT GAME_RENDER(Render)
+{
 }
