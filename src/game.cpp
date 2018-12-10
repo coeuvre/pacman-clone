@@ -1,4 +1,4 @@
-#include "game.h"
+#include "platform_game_bridge.h"
 
 #include <stdio.h>
 
@@ -15,7 +15,16 @@ InitGameState(game_state *GameState)
     GameState->Counter = 0.0F;
 }
 
-extern "C" EXPORT GAME_INIT(Init)
+static void
+DoFrame(game_state *GameState, game_input *Input)
+{
+    GameState->Counter += Input->DeltaTime;
+}
+
+extern "C"
+{
+
+EXPORT GAME_INIT(Init)
 {
     GlobalPlatform = Platform;
     if (!Platform->GameState)
@@ -25,13 +34,14 @@ extern "C" EXPORT GAME_INIT(Init)
     }
 }
 
-extern "C" EXPORT GAME_UPDATE(Update)
+EXPORT GAME_UPDATE(Update)
 {
     game_state *GameState = (game_state *) GlobalPlatform->GameState;
-
-    GameState->Counter += Input->DeltaTime;
+    DoFrame(GameState, Input);
 }
 
-extern "C" EXPORT GAME_RENDER(Render)
+EXPORT GAME_RENDER(Render)
 {
+}
+
 }
