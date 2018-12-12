@@ -11,6 +11,12 @@ SDLAllocateMemory(size_t Size)
     return malloc(Size);
 }
 
+static void *
+SDLReallocateMemory(void *Pointer, size_t NewSize)
+{
+    return realloc(Pointer, NewSize);
+}
+
 static void
 SDLDeallocateMemory(void *Ptr)
 {
@@ -105,13 +111,14 @@ struct sdl_game
 {
     bool IsLoaded;
     void *Library;
+    game_load_fn *Load;
     game_init_fn *Init;
     game_update_fn *Update;
     game_render_fn *Render;
 };
 
 static void
-SDLLoadGame(platform *Platform, sdl_game *Game)
+SDLLoadGame(sdl_game *Game, const platform *Platform)
 {
     if (Game->Library)
     {
@@ -122,6 +129,7 @@ SDLLoadGame(platform *Platform, sdl_game *Game)
     Game->Library = SDL_LoadObject("libgame.dylib");
     if (Game->Library)
     {
+        Game->Load = (game_load_fn *) SDL_LoadFunction(Game->Library, "Load");
         Game->Init = (game_init_fn *) SDL_LoadFunction(Game->Library, "Init");
         Game->Update = (game_update_fn *) SDL_LoadFunction(Game->Library, "Update");
         Game->Render = (game_render_fn *) SDL_LoadFunction(Game->Library, "Render");
@@ -131,7 +139,7 @@ SDLLoadGame(platform *Platform, sdl_game *Game)
 
     if (Game->IsLoaded)
     {
-        Game->Init(Platform);
+        Game->Load(Platform);
     }
     else
     {
@@ -144,6 +152,7 @@ static void
 SDLInitPlatform(platform *Platform)
 {
     Platform->AllocateMemory = &SDLAllocateMemory;
+    Platform->ReallocateMemory = &SDLReallocateMemory;
     Platform->DeallocateMemory = &SDLDeallocateMemory;
     Platform->ReadEntireFile = &SDLReadEntireFile;
 }
@@ -158,9 +167,11 @@ SDLRunMainLoop(SDL_Window *Window)
     SDLInitPlatform(&Platform);
 
     sdl_game Game = {};
-    SDLLoadGame(&Platform, &Game);
+    SDLLoadGame(&Game, &Platform);
 
-    game_input Input = {};
+    void *GameState = Game.Init(&Platform);
+
+    input Input = {};
     Input.DeltaTime = 0.016667F;
 
     Uint64 Frequency = SDL_GetPerformanceFrequency();
@@ -190,15 +201,15 @@ SDLRunMainLoop(SDL_Window *Window)
 
         // Hot reload game code every frame
         // TODO: Only reload when the game code has been changed
-        SDLLoadGame(&Platform, &Game);
+        SDLLoadGame(&Game, &Platform);
         if (Game.IsLoaded)
         {
-            Game.Update(&Platform, &Input);
+            Game.Update(GameState, &Platform, &Input);
 
             glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
             glClear(GL_COLOR_BUFFER_BIT);
 
-            Game.Render(&Platform);
+            Game.Render(GameState, &Platform);
         }
 
         SDL_GL_SwapWindow(Window);
