@@ -3,6 +3,8 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 
+#include "string.cpp"
+
 static void *
 SDLAllocateMemory(size_t Size)
 {
@@ -13,6 +15,85 @@ static void
 SDLDeallocateMemory(void *Ptr)
 {
     free(Ptr);
+}
+
+static void *
+SDLReadEntireFile(const char *URL)
+{
+    const char AssetPrefix[] = "assets://";
+    // TODO: Use platform dependent assets path
+    const char *AssetDir = "assets/";
+
+    const char DataPrefix[] = "data://";
+    // TODO: Use platform dependent data path
+    const char *DataDir = "data/";
+
+#define BufferSize 4096
+    char Buffer[BufferSize];
+    if (IsStartWith(URL, AssetPrefix))
+    {
+        const char *PathInAssetDir = &URL[ArrayLength(AssetPrefix) - 1];
+        ConcatString(Buffer, BufferSize, AssetDir, PathInAssetDir);
+    }
+    else if (IsStartWith(URL, DataPrefix))
+    {
+        const char *PathInDataDir = &URL[ArrayLength(DataPrefix) - 1];
+        ConcatString(Buffer, BufferSize, DataDir, PathInDataDir);
+    }
+    else
+    {
+        Buffer[0] = 0;
+    }
+
+    void *FileContent = 0;
+    if (Buffer[0])
+    {
+        SDL_RWops *Handle = SDL_RWFromFile(Buffer, "rb");
+        if (Handle)
+        {
+            Sint64 FileSize = SDL_RWsize(Handle);
+            if (FileSize >= 0)
+            {
+                size_t TotalBytes = (size_t) FileSize;
+                FileContent = SDLAllocateMemory(TotalBytes);
+                size_t TotalBytesRead = 0;
+                for (;;)
+                {
+                    size_t NumBytesRead = SDL_RWread(Handle, FileContent, 1, TotalBytes - TotalBytesRead);
+                    TotalBytesRead += NumBytesRead;
+                    if (NumBytesRead == 0 || TotalBytesRead >= TotalBytes)
+                    {
+                        break;
+                    }
+                }
+
+                if (TotalBytes != TotalBytesRead)
+                {
+                    // Can't read entire file
+                    SDLDeallocateMemory(FileContent);
+                    FileContent = 0;
+                }
+            }
+            else
+            {
+                // SDL_RWsize failed
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s\n", SDL_GetError());
+            }
+
+            SDL_RWclose(Handle);
+        }
+        else
+        {
+            // SDL_RWFromFile failed
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s\n", SDL_GetError());
+        }
+    }
+    else
+    {
+        // URL pattern not recognized
+    }
+
+    return FileContent;
 }
 
 struct sdl_game
@@ -59,6 +140,7 @@ SDLInitPlatform(platform *Platform)
 {
     Platform->AllocateMemory = &SDLAllocateMemory;
     Platform->DeallocateMemory = &SDLDeallocateMemory;
+    Platform->ReadEntireFile = &SDLReadEntireFile;
 }
 
 static void
@@ -104,50 +186,15 @@ SDLRunMainLoop(SDL_Window *Window)
         // Hot reload game code every frame
         // TODO: Only reload when the game code has been changed
         SDLLoadGame(&Platform, &Game);
+        if (Game.IsLoaded)
+        {
+            Game.Update(&Platform, &Input);
 
-        Game.Update(&Input);
+            glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
+            glClear(GL_COLOR_BUFFER_BIT);
 
-        // glBindTexture(GL_TEXTURE_2D, TextureHandle);
-        // //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Pixels);
-        // glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-        // glViewport(0, 0, WindowWidth, WindowHeight);
-
-        // glEnable(GL_TEXTURE_2D);
-
-        glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        Game.Render();
-        // glMatrixMode(GL_TEXTURE);
-        // glLoadIdentity();
-
-        // glMatrixMode(GL_MODELVIEW);
-        // glLoadIdentity();
-        // glMatrixMode(GL_PROJECTION);
-        // glLoadIdentity();
-
-        // f32 P = 0.9f;
-
-        // glBegin(GL_TRIANGLES);
-        // glTexCoord2f(0.0f, 0.0f);
-        // glVertex2f(-P, -P);
-
-        // glTexCoord2f(1.0f, 0.0f);
-        // glVertex2f(P, -P);
-
-        // glTexCoord2f(1.0f, 1.0f);
-        // glVertex2f(P, P);
-
-        // glTexCoord2f(0.0f, 0.0f);
-        // glVertex2f(-P, -P);
-
-        // glTexCoord2f(1.0f, 1.0f);
-        // glVertex2f(P, P);
-
-        // glTexCoord2f(0.0f, 1.0f);
-        // glVertex2f(-P, P);
-        // glEnd();
+            Game.Render(&Platform);
+        }
 
         SDL_GL_SwapWindow(Window);
 

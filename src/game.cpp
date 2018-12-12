@@ -2,8 +2,6 @@
 
 #include <stdio.h>
 
-platform *GlobalPlatform;
-
 struct game_state
 {
     float Counter;
@@ -26,17 +24,18 @@ extern "C"
 
 EXPORT GAME_INIT(Init)
 {
-    GlobalPlatform = Platform;
     if (!Platform->GameState)
     {
-        GlobalPlatform->GameState = GlobalPlatform->AllocateMemory(sizeof(game_state));
-        InitGameState((game_state *) GlobalPlatform->GameState);
+        Platform->GameState = Platform->AllocateMemory(sizeof(game_state));
+        InitGameState((game_state *) Platform->GameState);
+
+        Platform->ReadEntireFile("assets://test.png");
     }
 }
 
 EXPORT GAME_UPDATE(Update)
 {
-    game_state *GameState = (game_state *) GlobalPlatform->GameState;
+    game_state *GameState = (game_state *) Platform->GameState;
     DoFrame(GameState, Input);
 }
 
