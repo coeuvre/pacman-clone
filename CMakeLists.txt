@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 
 find_package(OpenGL REQUIRED)
 
-include_directories(SYSTEM /usr/local/include)
+include_directories(SYSTEM /usr/local/include ${PROJECT_SOURCE_DIR}/lib)
 link_directories(/usr/local/lib)
 
 include_directories(src)

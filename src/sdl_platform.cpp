@@ -18,7 +18,7 @@ SDLDeallocateMemory(void *Ptr)
 }
 
 static void *
-SDLReadEntireFile(const char *URL)
+SDLReadEntireFile(const char *URL, size_t *FileSize)
 {
     const char AssetPrefix[] = "assets://";
     // TODO: Use platform dependent assets path
@@ -51,10 +51,15 @@ SDLReadEntireFile(const char *URL)
         SDL_RWops *Handle = SDL_RWFromFile(Buffer, "rb");
         if (Handle)
         {
-            Sint64 FileSize = SDL_RWsize(Handle);
-            if (FileSize >= 0)
+            Sint64 Size = SDL_RWsize(Handle);
+            if (Size >= 0)
             {
-                size_t TotalBytes = (size_t) FileSize;
+                size_t TotalBytes = (size_t) Size;
+                if (FileSize)
+                {
+                    *FileSize = TotalBytes;
+                }
+
                 FileContent = SDLAllocateMemory(TotalBytes);
                 size_t TotalBytesRead = 0;
                 for (;;)

@@ -17,7 +17,7 @@
 //typedef void platform_log_fn(int Level, const char *FormatString, ...);
 typedef void *platform_allocate_memory_fn(size_t Size);
 typedef void platform_deallocate_memory_fn(void *Pointer);
-typedef void *platform_read_entire_file(const char *URL);
+typedef void *platform_read_entire_file(const char *URL, size_t *FileSize);
 
 struct platform
 {

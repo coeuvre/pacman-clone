@@ -2,6 +2,12 @@
 
 #include <stdio.h>
 
+#define STBI_ONLY_PNG
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
+
+platform *GlobalPlatform;
+
 struct game_state
 {
     float Counter;
@@ -24,12 +30,21 @@ extern "C"
 
 EXPORT GAME_INIT(Init)
 {
+    GlobalPlatform = Platform;
+
     if (!Platform->GameState)
     {
         Platform->GameState = Platform->AllocateMemory(sizeof(game_state));
         InitGameState((game_state *) Platform->GameState);
 
-        Platform->ReadEntireFile("assets://test.png");
+        size_t FileSize;
+        void *FileContent = Platform->ReadEntireFile("assets://test.png", &FileSize);
+        if (FileContent)
+        {
+            uint8_t *Pixels = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize, 0, 0, 0, 4);
+            Platform->DeallocateMemory(FileContent);
+            stbi_image_free(Pixels);
+        }
     }
 }
 
