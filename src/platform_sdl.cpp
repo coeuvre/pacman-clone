@@ -1,30 +1,26 @@
-#include "platform_game_bridge.h"
+#include "platform.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 
 #include "string.cpp"
 
-static void *
-SDLAllocateMemory(size_t Size)
+static PLATFORM_ALLOCATE_MEMORY(SDLAllocateMemory)
 {
     return malloc(Size);
 }
 
-static void *
-SDLReallocateMemory(void *Pointer, size_t NewSize)
+static PLATFORM_REALLOCATE_MEMORY(SDLReallocateMemory)
 {
     return realloc(Pointer, NewSize);
 }
 
-static void
-SDLDeallocateMemory(void *Ptr)
+static PLATFORM_DEALLOCATE_MEMORY(SDLDeallocateMemory)
 {
-    free(Ptr);
+    free(Pointer);
 }
 
-static void *
-SDLReadEntireFile(const char *URL, size_t *FileSize)
+static PLATFORM_READ_ENTIRE_FILE(SDLReadEntireFile)
 {
     const char AssetPrefix[] = "assets://";
     // TODO: Use platform dependent assets path
@@ -36,12 +32,12 @@ SDLReadEntireFile(const char *URL, size_t *FileSize)
 
 #define BufferSize 4096
     char Buffer[BufferSize];
-    if (IsStartWith(URL, AssetPrefix))
+    if (IsStringStartWith(URL, AssetPrefix))
     {
         const char *PathInAssetDir = &URL[ArrayLength(AssetPrefix) - 1];
         ConcatString(Buffer, BufferSize, AssetDir, PathInAssetDir);
     }
-    else if (IsStartWith(URL, DataPrefix))
+    else if (IsStringStartWith(URL, DataPrefix))
     {
         const char *PathInDataDir = &URL[ArrayLength(DataPrefix) - 1];
         ConcatString(Buffer, BufferSize, DataDir, PathInDataDir);
@@ -169,7 +165,7 @@ SDLRunMainLoop(SDL_Window *Window)
     sdl_game Game = {};
     SDLLoadGame(&Game, &Platform);
 
-    void *GameState = Game.Init(&Platform);
+    void *GameState = Game.Init();
 
     input Input = {};
     Input.DeltaTime = 0.016667F;
@@ -204,12 +200,12 @@ SDLRunMainLoop(SDL_Window *Window)
         SDLLoadGame(&Game, &Platform);
         if (Game.IsLoaded)
         {
-            Game.Update(GameState, &Platform, &Input);
+            Game.Update(GameState, &Input);
 
             glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
             glClear(GL_COLOR_BUFFER_BIT);
 
-            Game.Render(GameState, &Platform);
+            Game.Render(GameState);
         }
 
         SDL_GL_SwapWindow(Window);

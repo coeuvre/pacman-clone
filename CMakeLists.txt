@@ -12,6 +12,6 @@ include_directories(src)
 
 add_library(game SHARED src/game.cpp)
 
-add_executable(pacman src/sdl_platform.cpp)
+add_executable(pacman src/platform_sdl.cpp)
 target_link_libraries(pacman SDL2 ${OPENGL_LIBRARIES})
 add_dependencies(pacman game)

@@ -1,5 +1,5 @@
 static int
-IsStartWith(const char *String, const char *Prefix)
+IsStringStartWith(const char *String, const char *Prefix)
 {
     const char *A = String;
     const char *B = Prefix;
