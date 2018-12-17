@@ -125,13 +125,13 @@ SDLLoadGame(sdl_game *Game, const platform *Platform)
     Game->Library = SDL_LoadObject("libgame.dylib");
     if (Game->Library)
     {
-        Game->Load = (game_load_fn *) SDL_LoadFunction(Game->Library, "Load");
-        Game->Init = (game_init_fn *) SDL_LoadFunction(Game->Library, "Init");
-        Game->Update = (game_update_fn *) SDL_LoadFunction(Game->Library, "Update");
-        Game->Render = (game_render_fn *) SDL_LoadFunction(Game->Library, "Render");
+        Game->Load = (game_load_fn *) SDL_LoadFunction(Game->Library, "GameLoad");
+        Game->Init = (game_init_fn *) SDL_LoadFunction(Game->Library, "GameInit");
+        Game->Update = (game_update_fn *) SDL_LoadFunction(Game->Library, "GameUpdate");
+        Game->Render = (game_render_fn *) SDL_LoadFunction(Game->Library, "GameRender");
     }
 
-    Game->IsLoaded = Game->Library && Game->Init && Game->Update && Game->Render;
+    Game->IsLoaded = Game->Load && Game->Init && Game->Update && Game->Render;
 
     if (Game->IsLoaded)
     {

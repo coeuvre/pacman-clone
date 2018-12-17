@@ -41,13 +41,13 @@ LoadBitmap(bitmap *Bitmap, const char *URL)
 }
 
 static void
-DoInit(game_state *GameState)
+Init(game_state *GameState)
 {
     LoadBitmap(&GameState->TestBitmap, "assets://test.png");
 }
 
 static void
-DoUpdate(game_state *GameState, const input *Input)
+Update(game_state *GameState, const input *Input)
 {
     GameState->Counter += Input->DeltaTime;
 }
@@ -55,26 +55,26 @@ DoUpdate(game_state *GameState, const input *Input)
 extern "C"
 {
 
-EXPORT GAME_LOAD(Load)
+EXPORT GAME_LOAD(GameLoad)
 {
     GlobalPlatform = Platform;
 }
 
-EXPORT GAME_INIT(Init)
+EXPORT GAME_INIT(GameInit)
 {
     game_state *GameState = (game_state *) PlatformAllocateMemory(sizeof(game_state));
 
-    DoInit(GameState);
+    Init(GameState);
 
     return GameState;
 }
 
-EXPORT GAME_UPDATE(Update)
+EXPORT GAME_UPDATE(GameUpdate)
 {
-    DoUpdate((game_state *) GameState, Input);
+    Update((game_state *) GameState, Input);
 }
 
-EXPORT GAME_RENDER(Render)
+EXPORT GAME_RENDER(GameRender)
 {
 }
 

@@ -59,6 +59,7 @@ typedef GAME_INIT(game_init_fn);
 
 #define GAME_UPDATE(name) void name(void *GameState, const input *Input)
 typedef GAME_UPDATE(game_update_fn);
+
 #define GAME_RENDER(name) void name(void *GameState)
 typedef GAME_RENDER(game_render_fn);
 
