@@ -5,22 +5,24 @@
 
 #include "string.cpp"
 
-static PLATFORM_ALLOCATE_MEMORY(SDLAllocateMemory)
+platform GlobalPlatform;
+
+static PLATFORM_ALLOCATE_MEMORY(PlatformSDLAllocateMemory)
 {
     return malloc(Size);
 }
 
-static PLATFORM_REALLOCATE_MEMORY(SDLReallocateMemory)
+static PLATFORM_REALLOCATE_MEMORY(PlatformSDLReallocateMemory)
 {
     return realloc(Pointer, NewSize);
 }
 
-static PLATFORM_DEALLOCATE_MEMORY(SDLDeallocateMemory)
+static PLATFORM_DEALLOCATE_MEMORY(PlatformSDLDeallocateMemory)
 {
     free(Pointer);
 }
 
-static PLATFORM_READ_ENTIRE_FILE(SDLReadEntireFile)
+static PLATFORM_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
 {
     const char AssetPrefix[] = "assets://";
     // TODO: Use platform dependent assets path
@@ -62,7 +64,7 @@ static PLATFORM_READ_ENTIRE_FILE(SDLReadEntireFile)
                     *FileSize = TotalBytes;
                 }
 
-                FileContent = SDLAllocateMemory(TotalBytes);
+                FileContent = PlatformAllocateMemory(TotalBytes);
                 size_t TotalBytesRead = 0;
                 for (;;)
                 {
@@ -77,7 +79,7 @@ static PLATFORM_READ_ENTIRE_FILE(SDLReadEntireFile)
                 if (TotalBytes != TotalBytesRead)
                 {
                     // Can't read entire file
-                    SDLDeallocateMemory(FileContent);
+                    PlatformDeallocateMemory(FileContent);
                     FileContent = 0;
                 }
             }
@@ -114,7 +116,7 @@ struct sdl_game
 };
 
 static void
-SDLLoadGame(sdl_game *Game, const platform *Platform)
+SDLLoadGame(sdl_game *Game)
 {
     if (Game->Library)
     {
@@ -135,7 +137,7 @@ SDLLoadGame(sdl_game *Game, const platform *Platform)
 
     if (Game->IsLoaded)
     {
-        Game->Load(Platform);
+        Game->Load(&GlobalPlatform);
     }
     else
     {
@@ -147,10 +149,10 @@ SDLLoadGame(sdl_game *Game, const platform *Platform)
 static void
 SDLInitPlatform(platform *Platform)
 {
-    Platform->AllocateMemory = &SDLAllocateMemory;
-    Platform->ReallocateMemory = &SDLReallocateMemory;
-    Platform->DeallocateMemory = &SDLDeallocateMemory;
-    Platform->ReadEntireFile = &SDLReadEntireFile;
+    Platform->AllocateMemory = &PlatformSDLAllocateMemory;
+    Platform->ReallocateMemory = &PlatformSDLReallocateMemory;
+    Platform->DeallocateMemory = &PlatformSDLDeallocateMemory;
+    Platform->ReadEntireFile = &PlatformSDLReadEntireFile;
 }
 
 static void
@@ -159,11 +161,10 @@ SDLRunMainLoop(SDL_Window *Window)
     GLuint TextureHandle;
     glGenTextures(1, &TextureHandle);
 
-    platform Platform = {};
-    SDLInitPlatform(&Platform);
+    SDLInitPlatform(&GlobalPlatform);
 
     sdl_game Game = {};
-    SDLLoadGame(&Game, &Platform);
+    SDLLoadGame(&Game);
 
     void *GameState = Game.Init();
 
@@ -197,7 +198,7 @@ SDLRunMainLoop(SDL_Window *Window)
 
         // Hot reload game code every frame
         // TODO: Only reload when the game code has been changed
-        SDLLoadGame(&Game, &Platform);
+        SDLLoadGame(&Game);
         if (Game.IsLoaded)
         {
             Game.Update(GameState, &Input);

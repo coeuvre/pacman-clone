@@ -1,8 +1,9 @@
-#include "game.h"
+#include "platform.h"
+#include "renderer.h"
 
 #include <stdio.h>
 
-const platform *GlobalPlatform;
+platform GlobalPlatform = {};
 
 #define STBI_ONLY_PNG
 #define STBI_MALLOC(Size) PlatformAllocateMemory(Size)
@@ -17,33 +18,52 @@ struct bitmap
     int Width;
     int Height;
     int ChannelsPerPixel;
-    void *Pixels;
+    uint8_t *Bytes;
 };
 
 struct game_state
 {
     float Counter;
-    bitmap TestBitmap;
 };
 
-static void
-LoadBitmap(bitmap *Bitmap, const char *URL)
+static bitmap *
+LoadBitmap(const char *URL)
 {
+    bitmap *Bitmap = (bitmap *) PlatformAllocateMemory(sizeof(Bitmap));
     size_t FileSize;
     void *FileContent = PlatformReadEntireFile(URL, &FileSize);
     if (FileContent)
     {
-        Bitmap->Pixels = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize,
-                                               &Bitmap->Width, &Bitmap->Height, 0, 4);
+        Bitmap->Bytes = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize,
+                                              &Bitmap->Width, &Bitmap->Height, 0, 4);
         Bitmap->ChannelsPerPixel = 4;
         PlatformDeallocateMemory(FileContent);
     }
+    return Bitmap;
 }
+
+static void
+UnloadBitmap(bitmap **Bitmap)
+{
+    stbi_image_free((*Bitmap)->Bytes);
+    PlatformDeallocateMemory(*Bitmap);
+    *Bitmap = 0;
+}
+
+//static renderer_texture *
+//LoadTexture(const char *URL)
+//{
+//    bitmap *TestBitmap = LoadBitmap(URL);
+//    renderer_texture *Texture =
+//        RendererLoadTexture(TestBitmap->Width, TestBitmap->Height, TestBitmap->ChannelsPerPixel, TestBitmap->Bytes);
+//    UnloadBitmap(&TestBitmap);
+//    return Texture;
+//}
 
 static void
 Init(game_state *GameState)
 {
-    LoadBitmap(&GameState->TestBitmap, "assets://test.png");
+//    GameState->TestTexture = LoadTexture("assets://test.png");
 }
 
 static void
@@ -52,12 +72,18 @@ Update(game_state *GameState, const input *Input)
     GameState->Counter += Input->DeltaTime;
 }
 
+static void
+Render(game_state *GameState)
+{
+//    RendererRenderTexture(0, GameState->TestTexture, 0);
+}
+
 extern "C"
 {
 
 EXPORT GAME_LOAD(GameLoad)
 {
-    GlobalPlatform = Platform;
+    GlobalPlatform = *Platform;
 }
 
 EXPORT GAME_INIT(GameInit)
