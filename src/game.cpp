@@ -1,9 +1,9 @@
 #include "platform.h"
-#include "renderer.h"
 
 #include <stdio.h>
 
 platform GlobalPlatform = {};
+renderer GlobalRenderer = {};
 
 #define STBI_ONLY_PNG
 #define STBI_MALLOC(Size) PlatformAllocateMemory(Size)
@@ -12,6 +12,8 @@ platform GlobalPlatform = {};
 #define STB_IMAGE_IMPLEMENTATION
 
 #include <stb/stb_image.h>
+
+#include "renderer.cpp"
 
 struct bitmap
 {
@@ -24,22 +26,26 @@ struct bitmap
 struct game_state
 {
     float Counter;
+    renderer_texture *TestTexture;
 };
 
 static bitmap *
 LoadBitmap(const char *URL)
 {
-    bitmap *Bitmap = (bitmap *) PlatformAllocateMemory(sizeof(Bitmap));
+    bitmap *Result = 0;
+
     size_t FileSize;
     void *FileContent = PlatformReadEntireFile(URL, &FileSize);
     if (FileContent)
     {
-        Bitmap->Bytes = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize,
-                                              &Bitmap->Width, &Bitmap->Height, 0, 4);
-        Bitmap->ChannelsPerPixel = 4;
+        Result = (bitmap *) PlatformAllocateMemory(sizeof(*Result));
+        Result->Bytes = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize,
+                                              &Result->Width, &Result->Height, 0, 4);
+        Result->ChannelsPerPixel = 4;
+
         PlatformDeallocateMemory(FileContent);
     }
-    return Bitmap;
+    return Result;
 }
 
 static void
@@ -50,20 +56,26 @@ UnloadBitmap(bitmap **Bitmap)
     *Bitmap = 0;
 }
 
-//static renderer_texture *
-//LoadTexture(const char *URL)
-//{
-//    bitmap *TestBitmap = LoadBitmap(URL);
-//    renderer_texture *Texture =
-//        RendererLoadTexture(TestBitmap->Width, TestBitmap->Height, TestBitmap->ChannelsPerPixel, TestBitmap->Bytes);
-//    UnloadBitmap(&TestBitmap);
-//    return Texture;
-//}
+static renderer_texture *
+LoadTexture(renderer_context *Context, const char *URL)
+{
+    renderer_texture *Result = 0;
+
+    bitmap *TestBitmap = LoadBitmap(URL);
+    if (TestBitmap)
+    {
+        Result = RendererLoadTexture(Context, TestBitmap->Width, TestBitmap->Height, TestBitmap->ChannelsPerPixel,
+                                     TestBitmap->Bytes);
+        UnloadBitmap(&TestBitmap);
+    }
+
+    return Result;
+}
 
 static void
-Init(game_state *GameState)
+Init(game_state *GameState, renderer_context *RendererContext)
 {
-//    GameState->TestTexture = LoadTexture("assets://test.png");
+    GameState->TestTexture = LoadTexture(RendererContext, "assets://test.png");
 }
 
 static void
@@ -73,9 +85,12 @@ Update(game_state *GameState, const input *Input)
 }
 
 static void
-Render(game_state *GameState)
+Render(game_state *GameState, renderer_context *RendererContext)
 {
-//    RendererRenderTexture(0, GameState->TestTexture, 0);
+    if (GameState->TestTexture)
+    {
+        RendererRenderTexturedQuad2(RendererContext, 0, GameState->TestTexture, 0);
+    }
 }
 
 extern "C"
@@ -84,13 +99,14 @@ extern "C"
 EXPORT GAME_LOAD(GameLoad)
 {
     GlobalPlatform = *Platform;
+    GlobalRenderer = *Renderer;
 }
 
 EXPORT GAME_INIT(GameInit)
 {
-    game_state *GameState = (game_state *) PlatformAllocateMemory(sizeof(game_state));
+    game_state *GameState = (game_state *) PlatformAllocateMemory(sizeof(*GameState));
 
-    Init(GameState);
+    Init(GameState, RendererContext);
 
     return GameState;
 }
@@ -102,6 +118,7 @@ EXPORT GAME_UPDATE(GameUpdate)
 
 EXPORT GAME_RENDER(GameRender)
 {
+    Render((game_state *) GameState, RendererContext);
 }
 
 }

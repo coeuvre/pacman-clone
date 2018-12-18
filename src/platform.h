@@ -3,6 +3,8 @@
 
 #include "defs.h"
 
+#include "renderer.h"
+
 //
 // Functions that platform provides for game
 //
@@ -30,7 +32,7 @@ typedef PLATFORM_REALLOCATE_MEMORY(platform_reallocate_memory_fn);
 typedef PLATFORM_DEALLOCATE_MEMORY(platform_deallocate_memory_fn);
 
 #define PLATFORM_READ_ENTIRE_FILE(name) void *name(const char *URL, size_t *FileSize)
-typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
+typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file_fn);
 
 struct platform
 {
@@ -39,7 +41,7 @@ struct platform
     platform_reallocate_memory_fn *ReallocateMemory;
     platform_deallocate_memory_fn *DeallocateMemory;
 
-    platform_read_entire_file *ReadEntireFile;
+    platform_read_entire_file_fn *ReadEntireFile;
 };
 
 extern platform GlobalPlatform;
@@ -73,16 +75,16 @@ struct input
 // Functions that platform will call into game
 //
 
-#define GAME_LOAD(name) void name(const platform *Platform)
+#define GAME_LOAD(name) void name(const platform *Platform, const renderer *Renderer)
 typedef GAME_LOAD(game_load_fn);
 
-#define GAME_INIT(name) void *name()
+#define GAME_INIT(name) void *name(renderer_context *RendererContext)
 typedef GAME_INIT(game_init_fn);
 
 #define GAME_UPDATE(name) void name(void *GameState, const input *Input)
 typedef GAME_UPDATE(game_update_fn);
 
-#define GAME_RENDER(name) void name(void *GameState)
+#define GAME_RENDER(name) void name(void *GameState, renderer_context *RendererContext)
 typedef GAME_RENDER(game_render_fn);
 
 #endif // PLATFORM_H

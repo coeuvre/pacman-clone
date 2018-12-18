@@ -1,18 +1,40 @@
 #ifndef GAME_MATH_H
 #define GAME_MATH_H
 
+typedef float scalar;
+
 struct v2
 {
-    float X;
-    float Y;
+    scalar X;
+    scalar Y;
 };
 
-struct rect2
+union rect2
 {
-    float Left;
-    float Top;
-    float Right;
-    float Bottom;
+    struct
+    {
+        scalar MinX;
+        scalar MinY;
+        scalar MaxX;
+        scalar MaxY;
+    };
+
+    struct
+    {
+        v2 Min;
+        v2 Max;
+    };
 };
+
+inline rect2
+Rect2MinMax(scalar MinX, scalar MinY, scalar MaxX, scalar MaxY)
+{
+    rect2 Result = {};
+    Result.MinX = MinX;
+    Result.MinY = MinY;
+    Result.MaxX = MaxX;
+    Result.MaxY = MaxY;
+    return Result;
+}
 
 #endif // GAME_MATH_H

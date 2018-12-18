@@ -1,9 +1,11 @@
 #include "platform.h"
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+//#include <SDL2/SDL_opengl.h>
 
 #include "string.cpp"
+
+#include "renderer_sdl.cpp"
 
 platform GlobalPlatform;
 
@@ -36,12 +38,12 @@ static PLATFORM_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
     char Buffer[BufferSize];
     if (IsStringStartWith(URL, AssetPrefix))
     {
-        const char *PathInAssetDir = &URL[ArrayLength(AssetPrefix) - 1];
+        const char *PathInAssetDir = &URL[ArrayCount(AssetPrefix) - 1];
         ConcatString(Buffer, BufferSize, AssetDir, PathInAssetDir);
     }
     else if (IsStringStartWith(URL, DataPrefix))
     {
-        const char *PathInDataDir = &URL[ArrayLength(DataPrefix) - 1];
+        const char *PathInDataDir = &URL[ArrayCount(DataPrefix) - 1];
         ConcatString(Buffer, BufferSize, DataDir, PathInDataDir);
     }
     else
@@ -107,6 +109,7 @@ static PLATFORM_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
 
 struct sdl_game
 {
+    void *State;
     bool IsLoaded;
     void *Library;
     game_load_fn *Load;
@@ -116,12 +119,11 @@ struct sdl_game
 };
 
 static void
-SDLLoadGame(sdl_game *Game)
+PlatformSDLLoadGame(sdl_game *Game, renderer_context *RendererContext)
 {
     if (Game->Library)
     {
         SDL_UnloadObject(Game->Library);
-        *Game = {};
     }
 
     Game->Library = SDL_LoadObject("libgame.dylib");
@@ -137,17 +139,22 @@ SDLLoadGame(sdl_game *Game)
 
     if (Game->IsLoaded)
     {
-        Game->Load(&GlobalPlatform);
+        Game->Load(&GlobalPlatform, &GlobalRenderer);
+
+        if (!Game->State)
+        {
+            Game->State = Game->Init(RendererContext);
+        }
     }
     else
     {
-        // SDLLoadGame failed
+        // PlatformSDLLoadGame failed
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s\n", SDL_GetError());
     }
 }
 
 static void
-SDLInitPlatform(platform *Platform)
+PlatformSDLInit(platform *Platform)
 {
     Platform->AllocateMemory = &PlatformSDLAllocateMemory;
     Platform->ReallocateMemory = &PlatformSDLReallocateMemory;
@@ -156,17 +163,19 @@ SDLInitPlatform(platform *Platform)
 }
 
 static void
-SDLRunMainLoop(SDL_Window *Window)
+PlatformSDLRunMainLoop(SDL_Window *Window)
 {
-    GLuint TextureHandle;
-    glGenTextures(1, &TextureHandle);
+    PlatformSDLInit(&GlobalPlatform);
 
-    SDLInitPlatform(&GlobalPlatform);
+    renderer_context RendererContext = {};
+
+    int WindowWidth, WindowHeight;
+    SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
+
+    RendererSDLInit(&RendererContext, Window, (uint32_t) WindowWidth, (uint32_t) WindowHeight);
 
     sdl_game Game = {};
-    SDLLoadGame(&Game);
-
-    void *GameState = Game.Init();
+    PlatformSDLLoadGame(&Game, &RendererContext);
 
     input Input = {};
     Input.DeltaTime = 0.016667F;
@@ -198,18 +207,15 @@ SDLRunMainLoop(SDL_Window *Window)
 
         // Hot reload game code every frame
         // TODO: Only reload when the game code has been changed
-        SDLLoadGame(&Game);
+        PlatformSDLLoadGame(&Game, &RendererContext);
         if (Game.IsLoaded)
         {
-            Game.Update(GameState, &Input);
+            Game.Update(Game.State, &Input);
 
-            glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            Game.Render(GameState);
+            RendererSDLBeginFrame(&RendererContext);
+            Game.Render(Game.State, &RendererContext);
+            RendererSDLEndFrame(&RendererContext);
         }
-
-        SDL_GL_SwapWindow(Window);
 
         CurrentCounter = SDL_GetPerformanceCounter();
         Uint64 FrameCostCounter = CurrentCounter - LastCounter;
@@ -240,12 +246,12 @@ main(int argc, char *argv[])
 
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
 
-    if (SDL_Init(SDL_INIT_VIDEO) == 0)
+    if (SDL_Init(SDL_INIT_EVERYTHING) == 0)
     {
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+//        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+//        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+//        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+//        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
         SDL_Window *Window = SDL_CreateWindow(
             "PacMan",
@@ -253,28 +259,29 @@ main(int argc, char *argv[])
             SDL_WINDOWPOS_CENTERED,
             WindowWidth,
             WindowHeight,
-            SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
+            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+//            SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
         if (Window)
         {
-            SDL_GLContext GLContext = SDL_GL_CreateContext(Window);
+//            SDL_GLContext GLContext = SDL_GL_CreateContext(Window);
 
-            if (GLContext)
-            {
-                if (SDL_GL_SetSwapInterval(1) == 0)
-                {
-                    SDLRunMainLoop(Window);
-                }
-                else
-                {
-                    // SDL_GL_SwapInterval failed
-                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
-                }
-            }
-            else
-            {
-                // SDL_GL_CreateContext failed
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
-            }
+//            if (GLContext)
+//            {
+//                if (SDL_GL_SetSwapInterval(1) == 0)
+//                {
+            PlatformSDLRunMainLoop(Window);
+//                }
+//                else
+//                {
+//                    // SDL_GL_SwapInterval failed
+//                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
+//                }
+//            }
+//            else
+//            {
+//                // SDL_GL_CreateContext failed
+//                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
+//            }
         }
         else
         {
