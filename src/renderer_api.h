@@ -1,10 +1,7 @@
-#ifndef RENDERER_H
-#define RENDERER_H
+#ifndef RENDERER_API_H
+#define RENDERER_API_H
 
 #include "game_math.h"
-
-struct renderer_context;
-
 typedef uint64_t texture_handle;
 
 struct renderer_texture
@@ -13,21 +10,6 @@ struct renderer_texture
     int Height;
     texture_handle Handle;
 };
-
-#define RENDERER_LOAD_TEXTURE(name) renderer_texture *name(renderer_context *Context, int Width, int Height, int ChannelsPerPixel, uint8_t *Bytes)
-typedef RENDERER_LOAD_TEXTURE(renderer_load_texture_fn);
-
-struct renderer
-{
-    renderer_load_texture_fn *LoadTexture;
-};
-
-extern renderer GlobalRenderer;
-
-inline RENDERER_LOAD_TEXTURE(RendererLoadTexture)
-{
-    return GlobalRenderer.LoadTexture(Context, Width, Height, ChannelsPerPixel, Bytes);
-}
 
 enum renderer_command_type
 {
@@ -48,7 +30,7 @@ struct renderer_command_header
 
 struct renderer_context
 {
-    void *Renderer;
+    void *Raw;
 
     uint32_t CommandBufferSize;
     uint8_t *CommandBufferBase;
@@ -58,4 +40,12 @@ struct renderer_context
     uint32_t ViewportHeight;
 };
 
-#endif // RENDERER_H
+#define RENDERER_LOAD_TEXTURE(name) renderer_texture *name(renderer_context *Context, int Width, int Height, int ChannelsPerPixel, uint8_t *Bytes)
+typedef RENDERER_LOAD_TEXTURE(renderer_load_texture_fn);
+
+struct renderer_api
+{
+    renderer_load_texture_fn *LoadTexture;
+};
+
+#endif // RENDERER_API_H

@@ -1,37 +1,32 @@
-#include "platform.h"
-
 #include <SDL2/SDL.h>
-//#include <SDL2/SDL_opengl.h>
 
+#include "game.h"
 #include "string.cpp"
+#include "renderer_opengl.cpp"
 
-#include "renderer_sdl.cpp"
-
-platform GlobalPlatform;
-
-static PLATFORM_ALLOCATE_MEMORY(PlatformSDLAllocateMemory)
+static MEMORY_ALLOCATE(PlatformSDLAllocateMemory)
 {
     return malloc(Size);
 }
 
-static PLATFORM_REALLOCATE_MEMORY(PlatformSDLReallocateMemory)
+static MEMORY_REALLOCATE(PlatformSDLReallocateMemory)
 {
     return realloc(Pointer, NewSize);
 }
 
-static PLATFORM_DEALLOCATE_MEMORY(PlatformSDLDeallocateMemory)
+static MEMORY_DEALLOCATE(PlatformSDLDeallocateMemory)
 {
     free(Pointer);
 }
 
-static PLATFORM_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
+static FILE_READ_ENTIRE(PlatformSDLReadEntireFile)
 {
     const char AssetPrefix[] = "assets://";
-    // TODO: Use platform dependent assets path
+    // TODO: Use platform_api dependent assets path
     const char *AssetDir = "assets/";
 
     const char DataPrefix[] = "data://";
-    // TODO: Use platform dependent data path
+    // TODO: Use platform_api dependent data path
     const char *DataDir = "data/";
 
 #define BufferSize 4096
@@ -66,7 +61,7 @@ static PLATFORM_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
                     *FileSize = TotalBytes;
                 }
 
-                FileContent = PlatformAllocateMemory(TotalBytes);
+                FileContent = PlatformSDLAllocateMemory(TotalBytes);
                 size_t TotalBytesRead = 0;
                 for (;;)
                 {
@@ -81,7 +76,7 @@ static PLATFORM_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
                 if (TotalBytes != TotalBytesRead)
                 {
                     // Can't read entire file
-                    PlatformDeallocateMemory(FileContent);
+                    PlatformSDLDeallocateMemory(FileContent);
                     FileContent = 0;
                 }
             }
@@ -119,7 +114,7 @@ struct sdl_game
 };
 
 static void
-PlatformSDLLoadGame(sdl_game *Game, renderer_context *RendererContext)
+PlatformSDLLoadGame(sdl_game *Game, const game_required_api *Api, renderer_context *RendererContext)
 {
     if (Game->Library)
     {
@@ -139,7 +134,7 @@ PlatformSDLLoadGame(sdl_game *Game, renderer_context *RendererContext)
 
     if (Game->IsLoaded)
     {
-        Game->Load(&GlobalPlatform, &GlobalRenderer);
+        Game->Load(Api);
 
         if (!Game->State)
         {
@@ -154,28 +149,28 @@ PlatformSDLLoadGame(sdl_game *Game, renderer_context *RendererContext)
 }
 
 static void
-PlatformSDLInit(platform *Platform)
+PlatformSDLInitApi(game_required_api *Api)
 {
-    Platform->AllocateMemory = &PlatformSDLAllocateMemory;
-    Platform->ReallocateMemory = &PlatformSDLReallocateMemory;
-    Platform->DeallocateMemory = &PlatformSDLDeallocateMemory;
-    Platform->ReadEntireFile = &PlatformSDLReadEntireFile;
+    Api->Memory.Allocate = &PlatformSDLAllocateMemory;
+    Api->Memory.Reallocate = &PlatformSDLReallocateMemory;
+    Api->Memory.Deallocate = &PlatformSDLDeallocateMemory;
+    Api->File.ReadEntire = &PlatformSDLReadEntireFile;
+    RendererOpenGLInitApi(&Api->Renderer);
 }
 
 static void
 PlatformSDLRunMainLoop(SDL_Window *Window)
 {
-    PlatformSDLInit(&GlobalPlatform);
+    game_required_api GameRequiredApi = {};
+    PlatformSDLInitApi(&GameRequiredApi);
 
-    renderer_context RendererContext = {};
-
-    int WindowWidth, WindowHeight;
-    SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
-
-    RendererSDLInit(&RendererContext, Window, (uint32_t) WindowWidth, (uint32_t) WindowHeight);
+    renderer_context RendererOpenGLContext = {};
+    renderer_opengl_required_api RendererRequiredApi = {};
+    RendererRequiredApi.Memory = GameRequiredApi.Memory;
+    RendererOpenGLInit(&RendererRequiredApi, &RendererOpenGLContext);
 
     sdl_game Game = {};
-    PlatformSDLLoadGame(&Game, &RendererContext);
+    PlatformSDLLoadGame(&Game, &GameRequiredApi, &RendererOpenGLContext);
 
     input Input = {};
     Input.DeltaTime = 0.016667F;
@@ -207,14 +202,18 @@ PlatformSDLRunMainLoop(SDL_Window *Window)
 
         // Hot reload game code every frame
         // TODO: Only reload when the game code has been changed
-        PlatformSDLLoadGame(&Game, &RendererContext);
+        PlatformSDLLoadGame(&Game, &GameRequiredApi, &RendererOpenGLContext);
         if (Game.IsLoaded)
         {
             Game.Update(Game.State, &Input);
 
-            RendererSDLBeginFrame(&RendererContext);
-            Game.Render(Game.State, &RendererContext);
-            RendererSDLEndFrame(&RendererContext);
+            int WindowWidth, WindowHeight;
+            SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
+            RendererOpenGLBeginFrame(&RendererOpenGLContext, (uint32_t) WindowWidth, (uint32_t) WindowHeight);
+            Game.Render(Game.State, &RendererOpenGLContext);
+            RendererOpenGLEndFrame(&RendererOpenGLContext);
+
+            SDL_GL_SwapWindow(Window);
         }
 
         CurrentCounter = SDL_GetPerformanceCounter();
@@ -259,29 +258,28 @@ main(int argc, char *argv[])
             SDL_WINDOWPOS_CENTERED,
             WindowWidth,
             WindowHeight,
-            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-//            SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
+            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
         if (Window)
         {
-//            SDL_GLContext GLContext = SDL_GL_CreateContext(Window);
+            SDL_GLContext GLContext = SDL_GL_CreateContext(Window);
 
-//            if (GLContext)
-//            {
-//                if (SDL_GL_SetSwapInterval(1) == 0)
-//                {
-            PlatformSDLRunMainLoop(Window);
-//                }
-//                else
-//                {
-//                    // SDL_GL_SwapInterval failed
-//                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
-//                }
-//            }
-//            else
-//            {
-//                // SDL_GL_CreateContext failed
-//                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
-//            }
+            if (GLContext)
+            {
+                if (SDL_GL_SetSwapInterval(1) == 0)
+                {
+                    PlatformSDLRunMainLoop(Window);
+                }
+                else
+                {
+                    // SDL_GL_SwapInterval failed
+                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
+                }
+            }
+            else
+            {
+                // SDL_GL_CreateContext failed
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", SDL_GetError());
+            }
         }
         else
         {

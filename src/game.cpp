@@ -1,14 +1,13 @@
-#include "platform.h"
+#include "game.h"
+
+game_required_api GlobalApi;
 
 #include <stdio.h>
 
-platform GlobalPlatform = {};
-renderer GlobalRenderer = {};
-
 #define STBI_ONLY_PNG
-#define STBI_MALLOC(Size) PlatformAllocateMemory(Size)
-#define STBI_REALLOC(Pointer, NewSize) PlatformReallocateMemory(Pointer, NewSize)
-#define STBI_FREE(Pointer) PlatformDeallocateMemory(Pointer)
+#define STBI_MALLOC(Size) GlobalApi.Memory.Allocate(Size)
+#define STBI_REALLOC(Pointer, NewSize) GlobalApi.Memory.Reallocate(Pointer, NewSize)
+#define STBI_FREE(Pointer) GlobalApi.Memory.Deallocate(Pointer)
 #define STB_IMAGE_IMPLEMENTATION
 
 #include <stb/stb_image.h>
@@ -35,15 +34,15 @@ LoadBitmap(const char *URL)
     bitmap *Result = 0;
 
     size_t FileSize;
-    void *FileContent = PlatformReadEntireFile(URL, &FileSize);
+    void *FileContent = GlobalApi.File.ReadEntire(URL, &FileSize);
     if (FileContent)
     {
-        Result = (bitmap *) PlatformAllocateMemory(sizeof(*Result));
+        Result = (bitmap *) GlobalApi.Memory.Allocate(sizeof(*Result));
         Result->Bytes = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize,
                                               &Result->Width, &Result->Height, 0, 4);
         Result->ChannelsPerPixel = 4;
 
-        PlatformDeallocateMemory(FileContent);
+        GlobalApi.Memory.Deallocate(FileContent);
     }
     return Result;
 }
@@ -52,7 +51,7 @@ static void
 UnloadBitmap(bitmap **Bitmap)
 {
     stbi_image_free((*Bitmap)->Bytes);
-    PlatformDeallocateMemory(*Bitmap);
+    GlobalApi.Memory.Deallocate(*Bitmap);
     *Bitmap = 0;
 }
 
@@ -64,8 +63,9 @@ LoadTexture(renderer_context *Context, const char *URL)
     bitmap *TestBitmap = LoadBitmap(URL);
     if (TestBitmap)
     {
-        Result = RendererLoadTexture(Context, TestBitmap->Width, TestBitmap->Height, TestBitmap->ChannelsPerPixel,
-                                     TestBitmap->Bytes);
+        Result = GlobalApi.Renderer.LoadTexture(Context, TestBitmap->Width, TestBitmap->Height,
+                                                TestBitmap->ChannelsPerPixel,
+                                                TestBitmap->Bytes);
         UnloadBitmap(&TestBitmap);
     }
 
@@ -98,13 +98,12 @@ extern "C"
 
 EXPORT GAME_LOAD(GameLoad)
 {
-    GlobalPlatform = *Platform;
-    GlobalRenderer = *Renderer;
+    GlobalApi = *Api;
 }
 
 EXPORT GAME_INIT(GameInit)
 {
-    game_state *GameState = (game_state *) PlatformAllocateMemory(sizeof(*GameState));
+    game_state *GameState = (game_state *) GlobalApi.Memory.Allocate(sizeof(*GameState));
 
     Init(GameState, RendererContext);
 
