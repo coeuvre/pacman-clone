@@ -10,8 +10,8 @@ link_directories(/usr/local/lib)
 
 include_directories(src)
 
-add_library(game SHARED src/game.cpp)
+add_library(game SHARED src/game/game.cpp)
 
-add_executable(pacman src/platform_sdl.cpp)
+add_executable(pacman src/platform/platform_sdl.cpp)
 target_link_libraries(pacman SDL2 ${OPENGL_LIBRARIES})
 add_dependencies(pacman game)

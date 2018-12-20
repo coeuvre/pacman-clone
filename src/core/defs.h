@@ -1,5 +1,5 @@
-#ifndef DEFS_H
-#define DEFS_H
+#ifndef CORE_DEFS_H
+#define CORE_DEFS_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -19,4 +19,4 @@
 #define MB(x) (KB(x) * 1024UL)
 #define GB(x) (MB(x) * 1024UL)
 
-#endif // DEFS_H
+#endif // CORE_DEFS_H

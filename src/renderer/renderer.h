@@ -1,7 +1,9 @@
 #ifndef RENDERER_API_H
 #define RENDERER_API_H
 
-#include "game_math.h"
+#include "core/defs.h"
+#include "core/math.h"
+
 typedef uint64_t texture_handle;
 
 struct renderer_texture
@@ -30,8 +32,6 @@ struct renderer_command_header
 
 struct renderer_context
 {
-    void *Raw;
-
     uint32_t CommandBufferSize;
     uint8_t *CommandBufferBase;
     uint8_t *CommandBufferAt;
@@ -40,10 +40,10 @@ struct renderer_context
     uint32_t ViewportHeight;
 };
 
-#define RENDERER_LOAD_TEXTURE(name) renderer_texture *name(renderer_context *Context, int Width, int Height, int ChannelsPerPixel, uint8_t *Bytes)
+#define RENDERER_LOAD_TEXTURE(name) renderer_texture *name(int Width, int Height, int ChannelsPerPixel, uint8_t *Bytes)
 typedef RENDERER_LOAD_TEXTURE(renderer_load_texture_fn);
 
-struct renderer_api
+struct renderer_module
 {
     renderer_load_texture_fn *LoadTexture;
 };

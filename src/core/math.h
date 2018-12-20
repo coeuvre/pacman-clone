@@ -1,5 +1,5 @@
-#ifndef GAME_MATH_H
-#define GAME_MATH_H
+#ifndef CORE_MATH_H
+#define CORE_MATH_H
 
 typedef float scalar;
 
@@ -37,4 +37,4 @@ Rect2MinMax(scalar MinX, scalar MinY, scalar MaxX, scalar MaxY)
     return Result;
 }
 
-#endif // GAME_MATH_H
+#endif // CORE_MATH_H

@@ -1,8 +1,17 @@
 #include <SDL2/SDL.h>
 
-#include "game.h"
-#include "string.cpp"
-#include "renderer_opengl.cpp"
+#include "core/string.cpp"
+
+#include "platform/platform.h"
+
+static memory_module GlobalMemory;
+static file_module GlobalFile;
+
+#include "platform/renderer_opengl.cpp"
+
+static renderer_module GlobalRenderer;
+
+#include "game/game.h"
 
 static MEMORY_ALLOCATE(PlatformSDLAllocateMemory)
 {
@@ -19,7 +28,7 @@ static MEMORY_DEALLOCATE(PlatformSDLDeallocateMemory)
     free(Pointer);
 }
 
-static FILE_READ_ENTIRE(PlatformSDLReadEntireFile)
+static FILE_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
 {
     const char AssetPrefix[] = "assets://";
     // TODO: Use platform_api dependent assets path
@@ -102,44 +111,37 @@ static FILE_READ_ENTIRE(PlatformSDLReadEntireFile)
     return FileContent;
 }
 
-struct sdl_game
+struct sdl_game_code
 {
-    void *State;
     bool IsLoaded;
     void *Library;
     game_load_fn *Load;
-    game_init_fn *Init;
-    game_update_fn *Update;
-    game_render_fn *Render;
+    game_module Game;
 };
 
 static void
-PlatformSDLLoadGame(sdl_game *Game, const game_required_api *Api, renderer_context *RendererContext)
+PlatformSDLLoadGame(sdl_game_code *Code)
 {
-    if (Game->Library)
+    if (Code->Library)
     {
-        SDL_UnloadObject(Game->Library);
+        SDL_UnloadObject(Code->Library);
     }
 
-    Game->Library = SDL_LoadObject("libgame.dylib");
-    if (Game->Library)
+    Code->Library = SDL_LoadObject("libgame.dylib");
+    if (Code->Library)
     {
-        Game->Load = (game_load_fn *) SDL_LoadFunction(Game->Library, "GameLoad");
-        Game->Init = (game_init_fn *) SDL_LoadFunction(Game->Library, "GameInit");
-        Game->Update = (game_update_fn *) SDL_LoadFunction(Game->Library, "GameUpdate");
-        Game->Render = (game_render_fn *) SDL_LoadFunction(Game->Library, "GameRender");
+        Code->Load = (game_load_fn *) SDL_LoadFunction(Code->Library, "GameLoad");
     }
 
-    Game->IsLoaded = Game->Load && Game->Init && Game->Update && Game->Render;
+    Code->IsLoaded = Code->Library && Code->Load;
 
-    if (Game->IsLoaded)
+    if (Code->IsLoaded)
     {
-        Game->Load(Api);
-
-        if (!Game->State)
-        {
-            Game->State = Game->Init(RendererContext);
-        }
+        game_required_module Module = {};
+        Module.Memory = &GlobalMemory;
+        Module.File = &GlobalFile;
+        Module.Renderer = &GlobalRenderer;
+        Code->Load(&Code->Game, &Module);
     }
     else
     {
@@ -149,28 +151,25 @@ PlatformSDLLoadGame(sdl_game *Game, const game_required_api *Api, renderer_conte
 }
 
 static void
-PlatformSDLInitApi(game_required_api *Api)
+PlatformSDLInitModule()
 {
-    Api->Memory.Allocate = &PlatformSDLAllocateMemory;
-    Api->Memory.Reallocate = &PlatformSDLReallocateMemory;
-    Api->Memory.Deallocate = &PlatformSDLDeallocateMemory;
-    Api->File.ReadEntire = &PlatformSDLReadEntireFile;
-    RendererOpenGLInitApi(&Api->Renderer);
+    GlobalMemory.Allocate = &PlatformSDLAllocateMemory;
+    GlobalMemory.Reallocate = &PlatformSDLReallocateMemory;
+    GlobalMemory.Deallocate = &PlatformSDLDeallocateMemory;
+    GlobalFile.ReadEntireFile = &PlatformSDLReadEntireFile;
+    RendererOpenGLInitApi(&GlobalRenderer);
 }
 
 static void
 PlatformSDLRunMainLoop(SDL_Window *Window)
 {
-    game_required_api GameRequiredApi = {};
-    PlatformSDLInitApi(&GameRequiredApi);
+    PlatformSDLInitModule();
 
     renderer_context RendererOpenGLContext = {};
-    renderer_opengl_required_api RendererRequiredApi = {};
-    RendererRequiredApi.Memory = GameRequiredApi.Memory;
-    RendererOpenGLInit(&RendererRequiredApi, &RendererOpenGLContext);
+    RendererOpenGLInit(&RendererOpenGLContext);
 
-    sdl_game Game = {};
-    PlatformSDLLoadGame(&Game, &GameRequiredApi, &RendererOpenGLContext);
+    sdl_game_code Code = {};
+    PlatformSDLLoadGame(&Code);
 
     input Input = {};
     Input.DeltaTime = 0.016667F;
@@ -202,17 +201,16 @@ PlatformSDLRunMainLoop(SDL_Window *Window)
 
         // Hot reload game code every frame
         // TODO: Only reload when the game code has been changed
-        PlatformSDLLoadGame(&Game, &GameRequiredApi, &RendererOpenGLContext);
-        if (Game.IsLoaded)
+        PlatformSDLLoadGame(&Code);
+        if (Code.IsLoaded)
         {
-            Game.Update(Game.State, &Input);
-
             int WindowWidth, WindowHeight;
             SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
             RendererOpenGLBeginFrame(&RendererOpenGLContext, (uint32_t) WindowWidth, (uint32_t) WindowHeight);
-            Game.Render(Game.State, &RendererOpenGLContext);
+            Code.Game.Advance(Code.Game.GameState, &RendererOpenGLContext, &Input);
             RendererOpenGLEndFrame(&RendererOpenGLContext);
 
+            RendererOpenGLRender(&RendererOpenGLContext);
             SDL_GL_SwapWindow(Window);
         }
 
