@@ -4,11 +4,6 @@
 #include "platform/platform.h"
 #include "renderer/renderer.h"
 
-struct input
-{
-    float DeltaTime;
-};
-
 struct game_dependencies
 {
     // Memory
@@ -20,10 +15,11 @@ struct game_dependencies
     read_entire_file_fn *ReadEntireFile;
 
     // Renderer
-    render_context *RenderContext;
+    get_render_context_fn *GetRenderContext;
     load_texture_fn *LoadTexture;
 
-    input *Input;
+    // Input
+    get_input_fn *GetInput;
 };
 
 #define INIT_GAME_STATE(name) void *name()

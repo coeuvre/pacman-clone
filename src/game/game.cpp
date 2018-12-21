@@ -72,19 +72,28 @@ LoadTextureFromURL(const char *URL)
 static void
 DoUpdateGameState(game_state *GameState)
 {
+    render_command_buffer *CommandBuffer = BeginRenderCommand();
+
+    input* Input = GetInput();
     GameState->Counter += Input->DeltaTime;
 
     if (GameState->TestTexture)
     {
-        RendererRenderTexturedQuad2(RenderContext, 0, GameState->TestTexture, 0);
+        rect2 DstRect = Rect2MinSize(50.0F, 10.0F, 100.0F, 100.0F);
+        rect2 SrcRect = Rect2MinSize(0.0F, 10.0F * GameState->Counter, 50.0F, 50.0F);
+        PushTexturedRectangle2(CommandBuffer, &DstRect, GameState->TestTexture, &SrcRect);
     }
+
+    EndRenderCommand(CommandBuffer);
 }
 
 static game_state *
 DoInitGameState()
 {
     game_state *GameState = (game_state *) AllocateMemory(sizeof(*GameState));
+    *GameState = {};
     GameState->TestTexture = LoadTextureFromURL("assets://test.png");
+
     return GameState;
 }
 

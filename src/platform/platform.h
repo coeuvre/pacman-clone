@@ -15,5 +15,13 @@ typedef DEALLOCATE_MEMORY(deallocate_memory_fn);
 #define READ_ENTIRE_FILE(name) void *name(const char *URL, size_t *FileSize)
 typedef READ_ENTIRE_FILE(read_entire_file_fn);
 
+struct input
+{
+    float DeltaTime;
+};
+
+#define GET_INPUT(name) input *name();
+typedef GET_INPUT(get_input_fn);
+
 
 #endif // PLATFORM_PLATFORM_H

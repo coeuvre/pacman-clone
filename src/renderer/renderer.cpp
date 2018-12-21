@@ -1,36 +1,80 @@
 #include "renderer/renderer.h"
 
-static void
-RendererRenderTexturedQuad2(render_context *Context, rect2 *DestRect, texture *Texture, rect2 *SourceRect)
+static void *
+PushRenderCommandRaw(render_command_buffer *CommandBuffer, render_command_data_type Type, size_t DataSize)
 {
-    uint32_t HeaderSize = sizeof(renderer_command_type);
-    uint32_t DataSize = sizeof(renderer_command_render_texture);
-    uint32_t Size = HeaderSize + DataSize;
+    size_t HeaderSize = sizeof(render_command_data_type);
+    size_t Size = HeaderSize + DataSize;
     // TODO: Dynamically resize
-    Assert(Texture && Context->CommandBufferAt - Context->CommandBufferBase + Size < Context->CommandBufferSize);
+    Assert(CommandBuffer->At - CommandBuffer->Base + Size < CommandBuffer->Size);
 
-    renderer_command_header *Header = (renderer_command_header *) Context->CommandBufferAt;
-    Context->CommandBufferAt += HeaderSize;
+    render_command_header *Header = (render_command_header *) CommandBuffer->At;
+    CommandBuffer->At += HeaderSize;
 
-    renderer_command_render_texture *Data = (renderer_command_render_texture *) Context->CommandBufferAt;
-    Context->CommandBufferAt += DataSize;
+    Header->Type = Type;
 
-    Header->Type = RendererCommandType_render_textured_quad;
-    if (DestRect)
+    void *Data = CommandBuffer->At;
+    CommandBuffer->At += DataSize;
+
+    return Data;
+}
+
+#define PushRenderCommand(CommandBuffer, Type) (Type *) \
+    PushRenderCommandRaw(CommandBuffer, RenderCommandDataType_##Type, sizeof(Type))
+
+static void
+PushTexturedRectangle2(render_command_buffer *CommandBuffer, rect2 *DstRect, texture *Texture, rect2 *SrcRect)
+{
+    Assert(Texture);
+
+    render_context *RenderContext = GetRenderContext();
+    textured_rect2 *Data = PushRenderCommand(CommandBuffer, textured_rect2);
+
+    if (DstRect)
     {
-        Data->DestRect = *DestRect;
+        Data->DstRect = *DstRect;
     }
     else
     {
-        Data->DestRect = Rect2MinMax(0, 0, Context->ViewportWidth, Context->ViewportHeight);
+        Data->DstRect = Rectangle2MinMax(0, 0, RenderContext->ViewportWidth, RenderContext->ViewportHeight);
     }
-    Data->Texture = Texture;
-    if (SourceRect)
+    Data->Texture = *Texture;
+    if (SrcRect)
     {
-        Data->SourceRect = *SourceRect;
+        Data->SrcRect = *SrcRect;
     }
     else
     {
-        Data->SourceRect = Rect2MinMax(0, 0, Texture->Width, Texture->Height);
+        Data->SrcRect = Rectangle2MinMax(0, 0, Texture->Width, Texture->Height);
     }
+}
+
+static void
+InitRenderCommandBuffer(render_command_buffer *CommandBuffer)
+{
+    CommandBuffer->Size = KB(4);
+    CommandBuffer->Base = (uint8_t *) AllocateMemory(CommandBuffer->Size);
+    CommandBuffer->At = CommandBuffer->Base;
+}
+
+static render_command_buffer *
+BeginRenderCommand()
+{
+    render_context *RenderContext = GetRenderContext();
+    render_command_buffer *CommandBuffer = &RenderContext->CommandBuffer;
+
+    if (!CommandBuffer->Base)
+    {
+        InitRenderCommandBuffer(CommandBuffer);
+    }
+
+    CommandBuffer->At = CommandBuffer->Base;
+
+    return CommandBuffer;
+}
+
+static void
+EndRenderCommand(render_command_buffer *CommandBuffer)
+{
+
 }

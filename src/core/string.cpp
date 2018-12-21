@@ -36,17 +36,17 @@ static void
 ConcatString(char *Buffer, size_t BufferSize, const char *String1, const char *String2)
 {
     char *End = Buffer + BufferSize;
-    char *Dest = Buffer;
+    char *Dst = Buffer;
 
-    const char *Source = String1;
-    while (Dest < End && *Source)
+    const char *Src = String1;
+    while (Dst < End && *Src)
     {
-        *Dest++ = *Source++;
+        *Dst++ = *Src++;
     }
 
-    Source = String2;
-    while (Dest < End && *Source)
+    Src = String2;
+    while (Dst < End && *Src)
     {
-        *Dest++ = *Source++;
+        *Dst++ = *Src++;
     }
 }

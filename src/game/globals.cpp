@@ -7,10 +7,11 @@ deallocate_memory_fn *DeallocateMemory;
 read_entire_file_fn *ReadEntireFile;
 
 // Renderer
-render_context *RenderContext;
+get_render_context_fn *GetRenderContext;
 load_texture_fn *LoadTexture;
 
-input *Input;
+// Input
+get_input_fn *GetInput;
 
 static void
 InitGlobals(const game_dependencies *Dependencies)
@@ -21,8 +22,8 @@ InitGlobals(const game_dependencies *Dependencies)
 
     ReadEntireFile = Dependencies->ReadEntireFile;
 
-    RenderContext = Dependencies->RenderContext;
+    GetRenderContext = Dependencies->GetRenderContext;
     LoadTexture = Dependencies->LoadTexture;
 
-    Input = Dependencies->Input;
+    GetInput = Dependencies->GetInput;
 }

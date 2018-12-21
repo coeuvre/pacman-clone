@@ -5,28 +5,28 @@
 
 #include "core/string.cpp"
 
-static ALLOCATE_MEMORY(PlatformSDLAllocateMemory)
+static ALLOCATE_MEMORY(SDLAllocateMemory)
 {
     return malloc(Size);
 }
 
-allocate_memory_fn *AllocateMemory = &PlatformSDLAllocateMemory;
+allocate_memory_fn *AllocateMemory = &SDLAllocateMemory;
 
-static REALLOCATE_MEMORY(PlatformSDLReallocateMemory)
+static REALLOCATE_MEMORY(SDLReallocateMemory)
 {
     return realloc(Pointer, NewSize);
 }
 
-reallocate_memory_fn *ReallocateMemory = &PlatformSDLReallocateMemory;
+reallocate_memory_fn *ReallocateMemory = &SDLReallocateMemory;
 
-static DEALLOCATE_MEMORY(PlatformSDLDeallocateMemory)
+static DEALLOCATE_MEMORY(SDLDeallocateMemory)
 {
     free(Pointer);
 }
 
-deallocate_memory_fn *DeallocateMemory = &PlatformSDLDeallocateMemory;
+deallocate_memory_fn *DeallocateMemory = &SDLDeallocateMemory;
 
-static READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
+static READ_ENTIRE_FILE(SDLReadEntireFile)
 {
     const char AssetPrefix[] = "assets://";
     // TODO: Use platform_api dependent assets path
@@ -109,11 +109,27 @@ static READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
     return FileContent;
 }
 
-read_entire_file_fn *ReadEntireFile = &PlatformSDLReadEntireFile;
+read_entire_file_fn *ReadEntireFile = &SDLReadEntireFile;
+
+static render_context *RenderContext;
+
+static render_context *
+GetRenderContext()
+{
+    return RenderContext;
+}
 
 #include "platform/renderer_opengl.cpp"
 
-load_texture_fn *LoadTexture = &RendererOpenGLLoadTexture;
+load_texture_fn *LoadTexture = &OpenGLLoadTexture;
+
+static input *Input;
+
+static input *
+GetInput()
+{
+    return Input;
+}
 
 struct sdl_game_module
 {
@@ -125,7 +141,7 @@ struct sdl_game_module
 };
 
 static void
-PlatformSDLLoadGameModule(sdl_game_module *GameModule, const game_dependencies *Dependencies)
+SDLLoadGameModule(sdl_game_module *GameModule, const game_dependencies *Dependencies)
 {
     if (GameModule->Library)
     {
@@ -150,35 +166,37 @@ PlatformSDLLoadGameModule(sdl_game_module *GameModule, const game_dependencies *
     }
     else
     {
-        // PlatformSDLLoadGameModule failed
+        // SDLLoadGameModule failed
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s\n", SDL_GetError());
     }
 }
 
 static void
-PlatformSDLRunMainLoop(SDL_Window *Window)
+SDLRunMainLoop(SDL_Window *Window)
 {
-    render_context RenderContext = {};
-    RendererOpenGLInit(&RenderContext);
+    RenderContext = (render_context *) AllocateMemory(sizeof(*RenderContext));
+    *RenderContext = {};
 
-    input Input = {};
-    Input.DeltaTime = 0.016667F;
+    OpenGLInit();
+
+    Input = (input *) AllocateMemory(sizeof(*Input));
+    Input->DeltaTime = 0.016667F;
 
     game_dependencies Dependencies = {
         .AllocateMemory = AllocateMemory,
         .ReallocateMemory = ReallocateMemory,
         .DeallocateMemory = DeallocateMemory,
         .ReadEntireFile = ReadEntireFile,
-        .RenderContext = &RenderContext,
+        .GetRenderContext = &GetRenderContext,
         .LoadTexture = LoadTexture,
-        .Input = &Input,
+        .GetInput = &GetInput,
     };
 
     sdl_game_module GameModule = {};
-    PlatformSDLLoadGameModule(&GameModule, &Dependencies);
+    SDLLoadGameModule(&GameModule, &Dependencies);
 
     Uint64 Frequency = SDL_GetPerformanceFrequency();
-    Uint64 CounterPerFrame = (Uint64) (Input.DeltaTime * Frequency);
+    Uint64 CounterPerFrame = (Uint64) (Input->DeltaTime * Frequency);
     Uint64 CurrentCounter = SDL_GetPerformanceCounter();
     Uint64 LastCounter = CurrentCounter;
 
@@ -204,16 +222,16 @@ PlatformSDLRunMainLoop(SDL_Window *Window)
 
         // Hot reload game code every frame
         // TODO: Only reload when the game code has been changed
-        PlatformSDLLoadGameModule(&GameModule, &Dependencies);
+        SDLLoadGameModule(&GameModule, &Dependencies);
         if (GameModule.IsLoaded)
         {
             int WindowWidth, WindowHeight;
             SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
-            RendererOpenGLBeginFrame(&RenderContext, (uint32_t) WindowWidth, (uint32_t) WindowHeight);
+            OpenGLBeginFrame((uint32_t) WindowWidth, (uint32_t) WindowHeight);
             GameModule.Callback.UpdateGameState(GameModule.GameState);
-            RendererOpenGLEndFrame(&RenderContext);
+            OpenGLEndFrame();
 
-            RendererOpenGLRender(&RenderContext);
+            OpenGLRender();
             SDL_GL_SwapWindow(Window);
         }
 
@@ -251,7 +269,7 @@ main(int argc, char *argv[])
 //        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 //        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 //        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-//        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
         SDL_Window *Window = SDL_CreateWindow(
             "PacMan",
@@ -268,7 +286,7 @@ main(int argc, char *argv[])
             {
                 if (SDL_GL_SetSwapInterval(1) == 0)
                 {
-                    PlatformSDLRunMainLoop(Window);
+                    SDLRunMainLoop(Window);
                 }
                 else
                 {

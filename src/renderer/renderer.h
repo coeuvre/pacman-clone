@@ -13,34 +13,41 @@ struct texture
     texture_handle Handle;
 };
 
-enum renderer_command_type
+enum render_command_data_type
 {
-    RendererCommandType_render_textured_quad = 1
+    RenderCommandDataType_textured_rect2 = 1
 };
 
-struct renderer_command_render_texture
+struct textured_rect2
 {
-    rect2 DestRect;
-    texture *Texture;
-    rect2 SourceRect;
+    rect2 DstRect;
+    texture Texture;
+    rect2 SrcRect;
 };
 
-struct renderer_command_header
+struct render_command_header
 {
-    renderer_command_type Type;
+    render_command_data_type Type;
+};
+
+struct render_command_buffer
+{
+    size_t Size;
+    uint8_t *Base;
+    uint8_t *At;
 };
 
 struct render_context
 {
-    uint32_t CommandBufferSize;
-    uint8_t *CommandBufferBase;
-    uint8_t *CommandBufferAt;
-
+    render_command_buffer CommandBuffer;
     uint32_t ViewportWidth;
     uint32_t ViewportHeight;
 };
 
-#define LOAD_TEXTURE(name) texture *name(int Width, int Height, int ChannelsPerPixel, uint8_t *Bytes)
+#define GET_RENDER_CONTEXT(name) render_context *name();
+typedef GET_RENDER_CONTEXT(get_render_context_fn);
+
+#define LOAD_TEXTURE(name) texture *name(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, uint8_t *Bytes)
 typedef LOAD_TEXTURE(load_texture_fn);
 
 #endif // RENDERER_API_H
