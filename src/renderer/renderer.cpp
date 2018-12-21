@@ -1,7 +1,7 @@
 #include "renderer/renderer.h"
 
 static void
-RendererRenderTexturedQuad2(renderer_context *Context, rect2 *DestRect, renderer_texture *Texture, rect2 *SourceRect)
+RendererRenderTexturedQuad2(render_context *Context, rect2 *DestRect, texture *Texture, rect2 *SourceRect)
 {
     uint32_t HeaderSize = sizeof(renderer_command_type);
     uint32_t DataSize = sizeof(renderer_command_render_texture);

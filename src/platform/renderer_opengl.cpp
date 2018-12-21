@@ -2,11 +2,11 @@
 
 #include <SDL2/SDL_opengl.h>
 
-static RENDERER_LOAD_TEXTURE(RendererOpenGLLoadTexture)
+static LOAD_TEXTURE(RendererOpenGLLoadTexture)
 {
     Assert(ChannelsPerPixel == 4);
 
-    renderer_texture *Result = (renderer_texture *) GlobalMemory.Allocate(sizeof(*Result));
+    texture *Result = (texture *) AllocateMemory(sizeof(*Result));
     Result->Width = Width;
     Result->Height = Height;
 //    Result->Handle = (uint64_t) Texture;
@@ -15,21 +15,15 @@ static RENDERER_LOAD_TEXTURE(RendererOpenGLLoadTexture)
 }
 
 static void
-RendererOpenGLInitApi(renderer_module *Renderer)
-{
-    Renderer->LoadTexture = &RendererOpenGLLoadTexture;
-}
-
-static void
-RendererOpenGLInit(renderer_context *Context)
+RendererOpenGLInit(render_context *Context)
 {
     Context->CommandBufferSize = KB(4);
-    Context->CommandBufferBase = (uint8_t *) GlobalMemory.Allocate(Context->CommandBufferSize);
+    Context->CommandBufferBase = (uint8_t *) AllocateMemory(Context->CommandBufferSize);
     Context->CommandBufferAt = Context->CommandBufferBase;
 }
 
 static void
-RendererOpenGLBeginFrame(renderer_context *Context, uint32_t ViewportWidth, uint32_t ViewportHeight)
+RendererOpenGLBeginFrame(render_context *Context, uint32_t ViewportWidth, uint32_t ViewportHeight)
 {
     Context->CommandBufferAt = Context->CommandBufferBase;
     Context->ViewportWidth = ViewportWidth;
@@ -37,15 +31,15 @@ RendererOpenGLBeginFrame(renderer_context *Context, uint32_t ViewportWidth, uint
 }
 
 static void
-RendererOpenGLEndFrame(renderer_context *Context)
+RendererOpenGLEndFrame(render_context *Context)
 {
 
 }
 
 static void
-RendererOpenGLRender(renderer_context *Context)
+RendererOpenGLRender(render_context *Context)
 {
-        for (uint8_t *At = Context->CommandBufferBase; At < Context->CommandBufferAt; NOOP)
+    for (uint8_t *At = Context->CommandBufferBase; At < Context->CommandBufferAt; NOOP)
     {
         renderer_command_header *Header = (renderer_command_header *) At;
         At += sizeof(*Header);
@@ -60,7 +54,8 @@ RendererOpenGLRender(renderer_context *Context)
                 break;
             }
 
-            default: INVALID_CODE_PATH;
+            default:
+                INVALID_CODE_PATH;
         }
     }
 }

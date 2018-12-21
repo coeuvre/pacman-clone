@@ -4,28 +4,44 @@
 #include "platform/platform.h"
 #include "renderer/renderer.h"
 
-struct game_required_module
-{
-    memory_module *Memory;
-    file_module *File;
-    renderer_module *Renderer;
-};
-
 struct input
 {
     float DeltaTime;
 };
 
-#define GAME_ADVANCE(name) void name(void *GameState, renderer_context *RendererContext, const input *Input)
-typedef GAME_ADVANCE(game_advance_fn);
+struct game_dependencies
+{
+    // Memory
+    allocate_memory_fn *AllocateMemory;
+    reallocate_memory_fn *ReallocateMemory;
+    deallocate_memory_fn *DeallocateMemory;
+
+    // File
+    read_entire_file_fn *ReadEntireFile;
+
+    // Renderer
+    render_context *RenderContext;
+    load_texture_fn *LoadTexture;
+
+    input *Input;
+};
+
+#define INIT_GAME_STATE(name) void *name()
+
+typedef INIT_GAME_STATE(init_game_state_fn);
+
+#define UPDATE_GAME_STATE(name) void name(void *GameState)
+
+typedef UPDATE_GAME_STATE(update_game_state_fn);
 
 struct game_module
 {
-    void *GameState;
-    game_advance_fn *Advance;
+    init_game_state_fn *InitGameState;
+    update_game_state_fn *UpdateGameState;
 };
 
-#define GAME_LOAD(name) void name(game_module *Game, const game_required_module *Module)
-typedef GAME_LOAD(game_load_fn);
+#define INIT_GAME_MODULE(name) game_module name(const game_dependencies *Dependencies)
+
+typedef INIT_GAME_MODULE(game_load_fn);
 
 #endif // GAME_GAME_H

@@ -1,34 +1,32 @@
 #include <SDL2/SDL.h>
 
-#include "core/string.cpp"
-
 #include "platform/platform.h"
-
-static memory_module GlobalMemory;
-static file_module GlobalFile;
-
-#include "platform/renderer_opengl.cpp"
-
-static renderer_module GlobalRenderer;
-
 #include "game/game.h"
 
-static MEMORY_ALLOCATE(PlatformSDLAllocateMemory)
+#include "core/string.cpp"
+
+static ALLOCATE_MEMORY(PlatformSDLAllocateMemory)
 {
     return malloc(Size);
 }
 
-static MEMORY_REALLOCATE(PlatformSDLReallocateMemory)
+allocate_memory_fn *AllocateMemory = &PlatformSDLAllocateMemory;
+
+static REALLOCATE_MEMORY(PlatformSDLReallocateMemory)
 {
     return realloc(Pointer, NewSize);
 }
 
-static MEMORY_DEALLOCATE(PlatformSDLDeallocateMemory)
+reallocate_memory_fn *ReallocateMemory = &PlatformSDLReallocateMemory;
+
+static DEALLOCATE_MEMORY(PlatformSDLDeallocateMemory)
 {
     free(Pointer);
 }
 
-static FILE_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
+deallocate_memory_fn *DeallocateMemory = &PlatformSDLDeallocateMemory;
+
+static READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
 {
     const char AssetPrefix[] = "assets://";
     // TODO: Use platform_api dependent assets path
@@ -70,7 +68,7 @@ static FILE_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
                     *FileSize = TotalBytes;
                 }
 
-                FileContent = PlatformSDLAllocateMemory(TotalBytes);
+                FileContent = AllocateMemory(TotalBytes);
                 size_t TotalBytesRead = 0;
                 for (;;)
                 {
@@ -85,7 +83,7 @@ static FILE_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
                 if (TotalBytes != TotalBytesRead)
                 {
                     // Can't read entire file
-                    PlatformSDLDeallocateMemory(FileContent);
+                    DeallocateMemory(FileContent);
                     FileContent = 0;
                 }
             }
@@ -111,68 +109,73 @@ static FILE_READ_ENTIRE_FILE(PlatformSDLReadEntireFile)
     return FileContent;
 }
 
-struct sdl_game_code
+read_entire_file_fn *ReadEntireFile = &PlatformSDLReadEntireFile;
+
+#include "platform/renderer_opengl.cpp"
+
+load_texture_fn *LoadTexture = &RendererOpenGLLoadTexture;
+
+struct sdl_game_module
 {
     bool IsLoaded;
     void *Library;
     game_load_fn *Load;
-    game_module Game;
+    void *GameState;
+    game_module Callback;
 };
 
 static void
-PlatformSDLLoadGame(sdl_game_code *Code)
+PlatformSDLLoadGameModule(sdl_game_module *GameModule, const game_dependencies *Dependencies)
 {
-    if (Code->Library)
+    if (GameModule->Library)
     {
-        SDL_UnloadObject(Code->Library);
+        SDL_UnloadObject(GameModule->Library);
     }
 
-    Code->Library = SDL_LoadObject("libgame.dylib");
-    if (Code->Library)
+    GameModule->Library = SDL_LoadObject("libgame.dylib");
+    if (GameModule->Library)
     {
-        Code->Load = (game_load_fn *) SDL_LoadFunction(Code->Library, "GameLoad");
+        GameModule->Load = (game_load_fn *) SDL_LoadFunction(GameModule->Library, "GameLoad");
     }
 
-    Code->IsLoaded = Code->Library && Code->Load;
+    GameModule->IsLoaded = GameModule->Library && GameModule->Load;
 
-    if (Code->IsLoaded)
+    if (GameModule->IsLoaded)
     {
-        game_required_module Module = {};
-        Module.Memory = &GlobalMemory;
-        Module.File = &GlobalFile;
-        Module.Renderer = &GlobalRenderer;
-        Code->Load(&Code->Game, &Module);
+        GameModule->Callback = GameModule->Load(Dependencies);
+        if (!GameModule->GameState)
+        {
+            GameModule->GameState = GameModule->Callback.InitGameState();
+        }
     }
     else
     {
-        // PlatformSDLLoadGame failed
+        // PlatformSDLLoadGameModule failed
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s\n", SDL_GetError());
     }
 }
 
 static void
-PlatformSDLInitModule()
-{
-    GlobalMemory.Allocate = &PlatformSDLAllocateMemory;
-    GlobalMemory.Reallocate = &PlatformSDLReallocateMemory;
-    GlobalMemory.Deallocate = &PlatformSDLDeallocateMemory;
-    GlobalFile.ReadEntireFile = &PlatformSDLReadEntireFile;
-    RendererOpenGLInitApi(&GlobalRenderer);
-}
-
-static void
 PlatformSDLRunMainLoop(SDL_Window *Window)
 {
-    PlatformSDLInitModule();
-
-    renderer_context RendererOpenGLContext = {};
-    RendererOpenGLInit(&RendererOpenGLContext);
-
-    sdl_game_code Code = {};
-    PlatformSDLLoadGame(&Code);
+    render_context RenderContext = {};
+    RendererOpenGLInit(&RenderContext);
 
     input Input = {};
     Input.DeltaTime = 0.016667F;
+
+    game_dependencies Dependencies = {
+        .AllocateMemory = AllocateMemory,
+        .ReallocateMemory = ReallocateMemory,
+        .DeallocateMemory = DeallocateMemory,
+        .ReadEntireFile = ReadEntireFile,
+        .RenderContext = &RenderContext,
+        .LoadTexture = LoadTexture,
+        .Input = &Input,
+    };
+
+    sdl_game_module GameModule = {};
+    PlatformSDLLoadGameModule(&GameModule, &Dependencies);
 
     Uint64 Frequency = SDL_GetPerformanceFrequency();
     Uint64 CounterPerFrame = (Uint64) (Input.DeltaTime * Frequency);
@@ -201,16 +204,16 @@ PlatformSDLRunMainLoop(SDL_Window *Window)
 
         // Hot reload game code every frame
         // TODO: Only reload when the game code has been changed
-        PlatformSDLLoadGame(&Code);
-        if (Code.IsLoaded)
+        PlatformSDLLoadGameModule(&GameModule, &Dependencies);
+        if (GameModule.IsLoaded)
         {
             int WindowWidth, WindowHeight;
             SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
-            RendererOpenGLBeginFrame(&RendererOpenGLContext, (uint32_t) WindowWidth, (uint32_t) WindowHeight);
-            Code.Game.Advance(Code.Game.GameState, &RendererOpenGLContext, &Input);
-            RendererOpenGLEndFrame(&RendererOpenGLContext);
+            RendererOpenGLBeginFrame(&RenderContext, (uint32_t) WindowWidth, (uint32_t) WindowHeight);
+            GameModule.Callback.UpdateGameState(GameModule.GameState);
+            RendererOpenGLEndFrame(&RenderContext);
 
-            RendererOpenGLRender(&RendererOpenGLContext);
+            RendererOpenGLRender(&RenderContext);
             SDL_GL_SwapWindow(Window);
         }
 

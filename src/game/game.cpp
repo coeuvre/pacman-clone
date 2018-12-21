@@ -1,17 +1,12 @@
 #include "game.h"
 
-static memory_module GlobalMemory;
-static file_module GlobalFile;
-static renderer_module GlobalRenderer;
-
-#include <stdio.h>
+#include "game/globals.cpp"
 
 #define STBI_ONLY_PNG
-#define STBI_MALLOC(Size) GlobalMemory.Allocate(Size)
-#define STBI_REALLOC(Pointer, NewSize) GlobalMemory.Reallocate(Pointer, NewSize)
-#define STBI_FREE(Pointer) GlobalMemory.Deallocate(Pointer)
+#define STBI_MALLOC(Size) AllocateMemory(Size)
+#define STBI_REALLOC(Pointer, NewSize) ReallocateMemory(Pointer, NewSize)
+#define STBI_FREE(Pointer) DeallocateMemory(Pointer)
 #define STB_IMAGE_IMPLEMENTATION
-
 #include <stb/stb_image.h>
 
 #include "renderer/renderer.cpp"
@@ -27,7 +22,7 @@ struct bitmap
 struct game_state
 {
     float Counter;
-    renderer_texture *TestTexture;
+    texture *TestTexture;
 };
 
 static bitmap *
@@ -36,15 +31,15 @@ LoadBitmap(const char *URL)
     bitmap *Result = 0;
 
     size_t FileSize;
-    void *FileContent = GlobalFile.ReadEntireFile(URL, &FileSize);
+    void *FileContent = ReadEntireFile(URL, &FileSize);
     if (FileContent)
     {
-        Result = (bitmap *) GlobalMemory.Allocate(sizeof(*Result));
+        Result = (bitmap *) AllocateMemory(sizeof(*Result));
         Result->Bytes = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize,
                                               &Result->Width, &Result->Height, 0, 4);
         Result->ChannelsPerPixel = 4;
 
-        GlobalMemory.Deallocate(FileContent);
+        DeallocateMemory(FileContent);
     }
     return Result;
 }
@@ -53,21 +48,21 @@ static void
 UnloadBitmap(bitmap **Bitmap)
 {
     stbi_image_free((*Bitmap)->Bytes);
-    GlobalMemory.Deallocate(*Bitmap);
+    DeallocateMemory(*Bitmap);
     *Bitmap = 0;
 }
 
-static renderer_texture *
-LoadTexture(const char *URL)
+static texture *
+LoadTextureFromURL(const char *URL)
 {
-    renderer_texture *Result = 0;
+    texture *Result = 0;
 
     bitmap *TestBitmap = LoadBitmap(URL);
     if (TestBitmap)
     {
-        Result = GlobalRenderer.LoadTexture(TestBitmap->Width, TestBitmap->Height,
-                                            TestBitmap->ChannelsPerPixel,
-                                            TestBitmap->Bytes);
+        Result = LoadTexture(TestBitmap->Width, TestBitmap->Height,
+                             TestBitmap->ChannelsPerPixel,
+                             TestBitmap->Bytes);
         UnloadBitmap(&TestBitmap);
     }
 
@@ -75,40 +70,40 @@ LoadTexture(const char *URL)
 }
 
 static void
-Init(game_state *GameState)
-{
-    GameState->TestTexture = LoadTexture("assets://test.png");
-}
-
-static void
-DoAdvance(game_state *GameState, renderer_context *RendererContext, const input *Input)
+DoUpdateGameState(game_state *GameState)
 {
     GameState->Counter += Input->DeltaTime;
 
     if (GameState->TestTexture)
     {
-        RendererRenderTexturedQuad2(RendererContext, 0, GameState->TestTexture, 0);
+        RendererRenderTexturedQuad2(RenderContext, 0, GameState->TestTexture, 0);
     }
 }
 
-static GAME_ADVANCE(Advance)
+static game_state *
+DoInitGameState()
 {
-    DoAdvance((game_state *) GameState, RendererContext, Input);
+    game_state *GameState = (game_state *) AllocateMemory(sizeof(*GameState));
+    GameState->TestTexture = LoadTextureFromURL("assets://test.png");
+    return GameState;
 }
 
-extern "C" EXPORT GAME_LOAD(GameLoad)
+static INIT_GAME_STATE(InitGameState)
 {
-    GlobalMemory = *Module->Memory;
-    GlobalFile = *Module->File;
-    GlobalRenderer = *Module->Renderer;
+    return DoInitGameState();
+}
 
-    Game->Advance = &Advance;
+static UPDATE_GAME_STATE(UpdateGameState)
+{
+    DoUpdateGameState((game_state *) GameState);
+}
 
-    if (!Game->GameState)
-    {
-        game_state *GameState = (game_state *) GlobalMemory.Allocate(sizeof(*GameState));
-        Init(GameState);
+extern "C" EXPORT INIT_GAME_MODULE(GameLoad)
+{
+    InitGlobals(Dependencies);
 
-        Game->GameState = GameState;
-    }
+    game_module Result = {};
+    Result.InitGameState = &InitGameState;
+    Result.UpdateGameState = &UpdateGameState;
+    return Result;
 }

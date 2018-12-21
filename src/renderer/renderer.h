@@ -6,7 +6,7 @@
 
 typedef uint64_t texture_handle;
 
-struct renderer_texture
+struct texture
 {
     int Width;
     int Height;
@@ -21,7 +21,7 @@ enum renderer_command_type
 struct renderer_command_render_texture
 {
     rect2 DestRect;
-    renderer_texture *Texture;
+    texture *Texture;
     rect2 SourceRect;
 };
 
@@ -30,7 +30,7 @@ struct renderer_command_header
     renderer_command_type Type;
 };
 
-struct renderer_context
+struct render_context
 {
     uint32_t CommandBufferSize;
     uint8_t *CommandBufferBase;
@@ -40,12 +40,7 @@ struct renderer_context
     uint32_t ViewportHeight;
 };
 
-#define RENDERER_LOAD_TEXTURE(name) renderer_texture *name(int Width, int Height, int ChannelsPerPixel, uint8_t *Bytes)
-typedef RENDERER_LOAD_TEXTURE(renderer_load_texture_fn);
-
-struct renderer_module
-{
-    renderer_load_texture_fn *LoadTexture;
-};
+#define LOAD_TEXTURE(name) texture *name(int Width, int Height, int ChannelsPerPixel, uint8_t *Bytes)
+typedef LOAD_TEXTURE(load_texture_fn);
 
 #endif // RENDERER_API_H
