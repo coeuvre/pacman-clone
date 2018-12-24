@@ -82,7 +82,7 @@ DoUpdateGameState(game_state *GameState)
 
     if (GameState->TestTexture)
     {
-        rect2 DstRect = Rect2MinSize(50.0F, 10.0F, GameState->TestTexture->Width, GameState->TestTexture->Height);
+        rect2 DstRect = Rect2MinSize(50.0F, 10.0F + GameState->Counter, 100.0F, 100.0F);
         rect2 SrcRect = Rect2MinSize(0.0F, 0.0F, GameState->TestTexture->Width - 1.0F, GameState->TestTexture->Height - 1.0F);
         PushTexturedRectangle2(CommandBuffer, &DstRect, GameState->TestTexture, &SrcRect);
     }

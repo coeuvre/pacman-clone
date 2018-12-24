@@ -128,6 +128,8 @@ OpenGLRender()
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
+    glEnable(GL_MULTISAMPLE);
+
     glClear(GL_COLOR_BUFFER_BIT);
 
     vec2 InvViewportDim = 1.0F / Vec2(RenderContext->ViewportWidth, RenderContext->ViewportHeight);
