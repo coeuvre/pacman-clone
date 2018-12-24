@@ -1,7 +1,16 @@
 #ifndef CORE_MATH_H
 #define CORE_MATH_H
 
+#include <math.h>
+
 typedef float scalar;
+
+inline scalar
+Round(scalar A)
+{
+    scalar Result = roundf(A);
+    return Result;
+}
 
 struct vec2
 {
@@ -96,6 +105,94 @@ GetRect2Dim(rect2 Rectangle)
     vec2 Result = {
         .X = Rectangle.Max.X - Rectangle.Min.X,
         .Y = Rectangle.Max.Y - Rectangle.Min.Y,
+    };
+    return Result;
+}
+
+union vec3
+{
+    struct
+    {
+        scalar X;
+        scalar Y;
+        scalar Z;
+    };
+};
+
+inline vec3
+operator*(vec3 A, scalar B)
+{
+    vec3 Result = {
+        .X = A.X * B,
+        .Y = A.Y * B,
+        .Z = A.Z * B,
+    };
+    return Result;
+}
+
+union vec4
+{
+    struct
+    {
+        scalar X;
+        scalar Y;
+        scalar Z;
+        scalar W;
+    };
+
+    struct
+    {
+        scalar R;
+        scalar G;
+        scalar B;
+        scalar A;
+    };
+
+    struct
+    {
+        vec3 XYZ;
+        scalar XYZPad;
+    };
+
+    struct
+    {
+        vec3 RGB;
+        scalar RGBPad;
+    };
+};
+
+inline vec4
+Vec4(scalar X, scalar Y, scalar Z, scalar W)
+{
+    vec4 Result = {
+        .X = X,
+        .Y = Y,
+        .Z = Z,
+        .W = W,
+    };
+    return Result;
+}
+
+inline vec4
+operator*(vec4 A, scalar B)
+{
+    vec4 Result = {
+        .X = A.X * B,
+        .Y = A.Y * B,
+        .Z = A.Z * B,
+        .W = A.W * B,
+    };
+    return Result;
+}
+
+inline vec4
+operator/(vec4 A, scalar B)
+{
+    vec4 Result = {
+        .X = A.X / B,
+        .Y = A.Y / B,
+        .Z = A.Z / B,
+        .W = A.W / B,
     };
     return Result;
 }

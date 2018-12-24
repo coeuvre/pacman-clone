@@ -27,10 +27,30 @@ ConvertBitmap(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, uint8_
 
         for (uint32_t X = 0; X < Width; ++X)
         {
-            DstPixel[0] = SrcPixel[0];
-            DstPixel[1] = SrcPixel[1];
-            DstPixel[2] = SrcPixel[2];
-            DstPixel[3] = SrcPixel[3];
+            vec4 Color = Vec4(SrcPixel[0], SrcPixel[1], SrcPixel[2], SrcPixel[3]);
+            Color = Color / 255.0F;
+
+            // sRGB to lRGB
+            float Gamma = 2.2F;
+            Color.R = powf(Color.R, Gamma);
+            Color.G = powf(Color.G, Gamma);
+            Color.B = powf(Color.B, Gamma);
+
+            // Premultiply alpha
+            Color.RGB = Color.RGB * Color.A;
+
+            // lRGB to sRGB
+            float InvGamma = 1 / Gamma;
+            Color.R = powf(Color.R, InvGamma);
+            Color.G = powf(Color.G, InvGamma);
+            Color.B = powf(Color.B, InvGamma);
+
+            Color = Color * 255.0F;
+
+            DstPixel[0] = (uint8_t) Round(Color.R);
+            DstPixel[1] = (uint8_t) Round(Color.G);
+            DstPixel[2] = (uint8_t) Round(Color.B);
+            DstPixel[3] = (uint8_t) Round(Color.A);
 
             DstPixel += ChannelsPerPixel;
             SrcPixel += ChannelsPerPixel;
@@ -56,12 +76,12 @@ static LOAD_TEXTURE(OpenGLLoadTexture)
         uint8_t *Pixels = ConvertBitmap(Width, Height, ChannelsPerPixel, Bytes);
 
         glBindTexture(GL_TEXTURE_2D, TextureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0,
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB_ALPHA, Width, Height, 0,
                      GL_RGBA, GL_UNSIGNED_BYTE, Pixels);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glBindTexture(GL_TEXTURE_2D, 0);
 
         Result = (texture *) AllocateMemory(sizeof(*Result));
@@ -101,7 +121,12 @@ OpenGLRender()
 
     glClearColor(0.0F, 0.0F, 0.0F, 0.0F);
     glViewport(0, 0, RenderContext->ViewportWidth, RenderContext->ViewportHeight);
+
     glEnable(GL_TEXTURE_2D);
+    glEnable(GL_FRAMEBUFFER_SRGB);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     glClear(GL_COLOR_BUFFER_BIT);
 

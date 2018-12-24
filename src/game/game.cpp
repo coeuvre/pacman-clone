@@ -13,9 +13,9 @@
 
 struct bitmap
 {
-    int Width;
-    int Height;
-    int ChannelsPerPixel;
+    uint32_t Width;
+    uint32_t Height;
+    uint32_t ChannelsPerPixel;
     uint8_t *Bytes;
 };
 
@@ -35,8 +35,11 @@ LoadBitmap(const char *URL)
     if (FileContent)
     {
         Result = (bitmap *) AllocateMemory(sizeof(*Result));
+        int Width, Height;
         Result->Bytes = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize,
-                                              &Result->Width, &Result->Height, 0, 4);
+                                              &Width, &Height, 0, 4);
+        Result->Width = (uint32_t) Width;
+        Result->Height = (uint32_t) Height;
         Result->ChannelsPerPixel = 4;
 
         DeallocateMemory(FileContent);
@@ -79,8 +82,8 @@ DoUpdateGameState(game_state *GameState)
 
     if (GameState->TestTexture)
     {
-        rect2 DstRect = Rect2MinSize(50.0F, 10.0F, 100.0F, 100.0F);
-        rect2 SrcRect = Rect2MinSize(0.0F, 10.0F * GameState->Counter, 50.0F, 50.0F);
+        rect2 DstRect = Rect2MinSize(50.0F, 10.0F, GameState->TestTexture->Width, GameState->TestTexture->Height);
+        rect2 SrcRect = Rect2MinSize(0.0F, 0.0F, GameState->TestTexture->Width - 1.0F, GameState->TestTexture->Height - 1.0F);
         PushTexturedRectangle2(CommandBuffer, &DstRect, GameState->TestTexture, &SrcRect);
     }
 

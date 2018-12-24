@@ -8,8 +8,8 @@ typedef uint64_t texture_handle;
 
 struct texture
 {
-    int Width;
-    int Height;
+    uint32_t Width;
+    uint32_t Height;
     texture_handle Handle;
 };
 
@@ -47,6 +47,10 @@ struct render_context
 #define GET_RENDER_CONTEXT(name) render_context *name();
 typedef GET_RENDER_CONTEXT(get_render_context_fn);
 
+// Assuming the color is in sRGB space and is NOT pre-multiply by alpha.
+//
+// ChannelsPerPixel
+//     4 - RGBA8 format
 #define LOAD_TEXTURE(name) texture *name(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, uint8_t *Bytes)
 typedef LOAD_TEXTURE(load_texture_fn);
 
