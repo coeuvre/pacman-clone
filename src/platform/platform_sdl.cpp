@@ -53,7 +53,7 @@ static READ_ENTIRE_FILE(SDLReadEntireFile)
         Buffer[0] = 0;
     }
 
-    void *FileContent = 0;
+    uint8_t *FileContent = 0;
     if (Buffer[0])
     {
         SDL_RWops *Handle = SDL_RWFromFile(Buffer, "rb");
@@ -68,7 +68,7 @@ static READ_ENTIRE_FILE(SDLReadEntireFile)
                     *FileSize = TotalBytes;
                 }
 
-                FileContent = AllocateMemory(TotalBytes);
+                FileContent = (uint8_t *) AllocateMemory(TotalBytes);
                 size_t TotalBytesRead = 0;
                 for (;;)
                 {
@@ -111,24 +111,24 @@ static READ_ENTIRE_FILE(SDLReadEntireFile)
 
 read_entire_file_fn *ReadEntireFile = &SDLReadEntireFile;
 
-static render_context *RenderContext;
+static render_context *GlobalRenderContext;
 
 static render_context *
 GetRenderContext()
 {
-    return RenderContext;
+    return GlobalRenderContext;
 }
 
-#include "platform/renderer_opengl.cpp"
+#include "renderer/renderer_opengl.cpp"
 
 load_texture_fn *LoadTexture = &OpenGLLoadTexture;
 
-static input *Input;
+static input *GlobalInput;
 
 static input *
 GetInput()
 {
-    return Input;
+    return GlobalInput;
 }
 
 struct sdl_game_module
@@ -174,13 +174,9 @@ SDLLoadGameModule(sdl_game_module *GameModule, const game_dependencies *Dependen
 static void
 SDLRunMainLoop(SDL_Window *Window)
 {
-    RenderContext = (render_context *) AllocateMemory(sizeof(*RenderContext));
-    *RenderContext = {};
 
-    OpenGLInit();
-
-    Input = (input *) AllocateMemory(sizeof(*Input));
-    Input->DeltaTime = 0.016667F;
+    GlobalInput = (input *) AllocateMemory(sizeof(*GlobalInput));
+    GlobalInput->DeltaTime = 0.016667F;
 
     game_dependencies Dependencies = {
         .AllocateMemory = AllocateMemory,
@@ -196,7 +192,7 @@ SDLRunMainLoop(SDL_Window *Window)
     SDLLoadGameModule(&GameModule, &Dependencies);
 
     Uint64 Frequency = SDL_GetPerformanceFrequency();
-    Uint64 CounterPerFrame = (Uint64) (Input->DeltaTime * Frequency);
+    Uint64 CounterPerFrame = (Uint64) (GlobalInput->DeltaTime * Frequency);
     Uint64 CurrentCounter = SDL_GetPerformanceCounter();
     Uint64 LastCounter = CurrentCounter;
 
@@ -266,9 +262,9 @@ main(int argc, char *argv[])
 
     if (SDL_Init(SDL_INIT_EVERYTHING) == 0)
     {
-//        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-//        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-//        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
         SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
         SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
         SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
@@ -293,7 +289,17 @@ main(int argc, char *argv[])
             {
                 if (SDL_GL_SetSwapInterval(1) == 0)
                 {
-                    SDLRunMainLoop(Window);
+                    GlobalRenderContext = (render_context *) AllocateMemory(sizeof(*GlobalRenderContext));
+                    *GlobalRenderContext = {};
+
+                    if (OpenGLInit(SDL_GL_GetProcAddress))
+                    {
+                        SDLRunMainLoop(Window);
+                    }
+                    else
+                    {
+                        // OpenGLInit failed
+                    }
                 }
                 else
                 {

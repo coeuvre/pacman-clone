@@ -10,12 +10,14 @@
 #include <stb_image.h>
 
 #include "renderer/renderer.cpp"
+#include "game/freetype.cpp"
 
 struct bitmap
 {
     uint32_t Width;
     uint32_t Height;
     uint32_t ChannelsPerPixel;
+    int32_t Pitch;
     uint8_t *Bytes;
 };
 
@@ -34,13 +36,18 @@ LoadBitmap(const char *URL)
     void *FileContent = ReadEntireFile(URL, &FileSize);
     if (FileContent)
     {
-        Result = (bitmap *) AllocateMemory(sizeof(*Result));
         int Width, Height;
-        Result->Bytes = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize,
+        uint8_t *Bytes = stbi_load_from_memory((const uint8_t *) FileContent, (int) FileSize,
                                               &Width, &Height, 0, 4);
-        Result->Width = (uint32_t) Width;
-        Result->Height = (uint32_t) Height;
-        Result->ChannelsPerPixel = 4;
+        if (Bytes)
+        {
+            Result = (bitmap *) AllocateMemory(sizeof(*Result));
+            Result->Bytes = Bytes;
+            Result->Width = (uint32_t) Width;
+            Result->Height = (uint32_t) Height;
+            Result->ChannelsPerPixel = 4;
+            Result->Pitch = Width * Result->ChannelsPerPixel;
+        }
 
         DeallocateMemory(FileContent);
     }
@@ -64,7 +71,7 @@ LoadTextureFromURL(const char *URL)
     if (TestBitmap)
     {
         Result = LoadTexture(TestBitmap->Width, TestBitmap->Height,
-                             TestBitmap->ChannelsPerPixel,
+                             TestBitmap->ChannelsPerPixel, TestBitmap->Pitch,
                              TestBitmap->Bytes);
         UnloadBitmap(&TestBitmap);
     }
@@ -77,7 +84,27 @@ DoInitGame()
 {
     game_state *GameState = (game_state *) AllocateMemory(sizeof(*GameState));
     *GameState = {};
-    GameState->TestTexture = LoadTextureFromURL("assets://test.png");
+//    GameState->TestTexture = LoadTextureFromURL("assets://test.png");
+
+    {
+        ft_instance *FTInstance = LoadFTInstance();
+        font *Font = LoadFontFromURL(FTInstance, "assets://test_font.otf");
+
+        FT_Set_Pixel_Sizes(Font->Face, 0, 32);
+        FT_UInt GlyphIndex = FT_Get_Char_Index(Font->Face, 'A');
+        FT_Load_Glyph(Font->Face, GlyphIndex, 0);
+
+        FT_GlyphSlot Slot = Font->Face->glyph;
+        if (Slot->format != FT_GLYPH_FORMAT_BITMAP)
+        {
+            FT_Render_Glyph(Slot, FT_RENDER_MODE_NORMAL);
+        }
+
+        GameState->TestTexture = LoadTexture(Slot->bitmap.width, Slot->bitmap.rows, 1, Slot->bitmap.pitch, Slot->bitmap.buffer);
+
+        UnloadFont(&Font);
+        UnloadFTInstance(&FTInstance);
+    }
 
     return GameState;
 }
@@ -88,16 +115,16 @@ DoUpdateGame(game_state *GameState)
     input* Input = GetInput();
     GameState->Counter += Input->DeltaTime;
 
-    render_command_buffer *CommandBuffer = BeginRenderCommand();
     {
+        render_command_buffer *CommandBuffer = BeginRenderCommand();
         if (GameState->TestTexture)
         {
-            rect2 DstRect = Rect2MinSize(50.0F, 10.0F + GameState->Counter * 10.0F, 100.0F, 100.0F);
-            rect2 SrcRect = Rect2MinSize(0.0F, 0.0F, GameState->TestTexture->Width - 1.0F, GameState->TestTexture->Height - 1.0F);
+            rect2 DstRect = Rect2MinSize(50.0F, 10.0F + GameState->Counter * 10.0F, GameState->TestTexture->Width, GameState->TestTexture->Height);
+            rect2 SrcRect = Rect2MinSize(0.0F, 0.0F, GameState->TestTexture->Width, GameState->TestTexture->Height);
             PushTexturedRectangle2(CommandBuffer, &DstRect, GameState->TestTexture, &SrcRect);
         }
+        EndRenderCommand(CommandBuffer);
     }
-    EndRenderCommand(CommandBuffer);
 }
 
 static INIT_GAME(InitGame)

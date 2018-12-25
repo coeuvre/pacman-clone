@@ -51,7 +51,7 @@ typedef GET_RENDER_CONTEXT(get_render_context_fn);
 //
 // ChannelsPerPixel
 //     4 - RGBA8 format
-#define LOAD_TEXTURE(name) texture *name(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, uint8_t *Bytes)
+#define LOAD_TEXTURE(name) texture *name(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, int32_t Pitch, uint8_t *Bytes)
 typedef LOAD_TEXTURE(load_texture_fn);
 
 #endif // RENDERER_API_H

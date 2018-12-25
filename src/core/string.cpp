@@ -39,14 +39,19 @@ ConcatString(char *Buffer, size_t BufferSize, const char *String1, const char *S
     char *Dst = Buffer;
 
     const char *Src = String1;
-    while (Dst < End && *Src)
+    while ((Dst + 1) < End && *Src)
     {
         *Dst++ = *Src++;
     }
 
     Src = String2;
-    while (Dst < End && *Src)
+    while ((Dst + 1) < End && *Src)
     {
         *Dst++ = *Src++;
+    }
+
+    if (Dst < End)
+    {
+        *Dst++ = 0;
     }
 }

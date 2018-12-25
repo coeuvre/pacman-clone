@@ -12,7 +12,7 @@ typedef REALLOCATE_MEMORY(reallocate_memory_fn);
 #define DEALLOCATE_MEMORY(name) void name(void *Pointer)
 typedef DEALLOCATE_MEMORY(deallocate_memory_fn);
 
-#define READ_ENTIRE_FILE(name) void *name(const char *URL, size_t *FileSize)
+#define READ_ENTIRE_FILE(name) uint8_t *name(const char *URL, size_t *FileSize)
 typedef READ_ENTIRE_FILE(read_entire_file_fn);
 
 struct input
