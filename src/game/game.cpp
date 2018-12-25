@@ -25,6 +25,8 @@ struct game_state
 {
     float Counter;
     texture *TestTexture;
+    ft_instance *FTInstance;
+    font *Font;
 };
 
 static bitmap *
@@ -79,38 +81,26 @@ LoadTextureFromURL(const char *URL)
     return Result;
 }
 
+static void OnGameReload(game_state *GameState)
+{
+    if (GameState->FTInstance)
+    {
+        BindFTMemoryCallback(GameState->FTInstance->Memory);
+    }
+}
+
 static game_state *
-DoInitGame()
+LoadGameState()
 {
     game_state *GameState = (game_state *) AllocateMemory(sizeof(*GameState));
     *GameState = {};
-//    GameState->TestTexture = LoadTextureFromURL("assets://test.png");
-
-    {
-        ft_instance *FTInstance = LoadFTInstance();
-        font *Font = LoadFontFromURL(FTInstance, "assets://test_font.otf");
-
-        FT_Set_Pixel_Sizes(Font->Face, 0, 32);
-        FT_UInt GlyphIndex = FT_Get_Char_Index(Font->Face, 'A');
-        FT_Load_Glyph(Font->Face, GlyphIndex, 0);
-
-        FT_GlyphSlot Slot = Font->Face->glyph;
-        if (Slot->format != FT_GLYPH_FORMAT_BITMAP)
-        {
-            FT_Render_Glyph(Slot, FT_RENDER_MODE_NORMAL);
-        }
-
-        GameState->TestTexture = LoadTexture(Slot->bitmap.width, Slot->bitmap.rows, 1, Slot->bitmap.pitch, Slot->bitmap.buffer);
-
-        UnloadFont(&Font);
-        UnloadFTInstance(&FTInstance);
-    }
-
+    GameState->TestTexture = LoadTextureFromURL("assets://test.png");
+    GameState->FTInstance = LoadFTInstance();
+    GameState->Font = LoadFontFromURL(GameState->FTInstance, "assets://test_font.otf");
     return GameState;
 }
 
-static void
-DoUpdateGame(game_state *GameState)
+static UPDATE_GAME(UpdateGame)
 {
     input* Input = GetInput();
     GameState->Counter += Input->DeltaTime;
@@ -123,26 +113,36 @@ DoUpdateGame(game_state *GameState)
             rect2 SrcRect = Rect2MinSize(0.0F, 0.0F, GameState->TestTexture->Width, GameState->TestTexture->Height);
             PushTexturedRectangle2(CommandBuffer, &DstRect, GameState->TestTexture, &SrcRect);
         }
+
+        font *Font = GameState->Font;
+        {
+            FT_Set_Pixel_Sizes(Font->Face, 0, 64);
+            FT_Load_Char(Font->Face, 'F', FT_LOAD_RENDER);
+            FT_GlyphSlot Slot = Font->Face->glyph;
+            texture *Texture = LoadTexture(Slot->bitmap.width, Slot->bitmap.rows, 1, Slot->bitmap.pitch, Slot->bitmap.buffer);
+            rect2 DstRect = Rect2MinSize(10.0F, 10.0F, Texture->Width, Texture->Height);
+            PushTexturedRectangle2(CommandBuffer, &DstRect, Texture, 0);
+            UnloadTexture(Texture);
+        }
+
         EndRenderCommand(CommandBuffer);
     }
 }
 
-static INIT_GAME(InitGame)
-{
-    return DoInitGame();
-}
-
-static UPDATE_GAME(UpdateGame)
-{
-    DoUpdateGame((game_state *) GameState);
-}
-
 extern "C" EXPORT INIT_GAME_MODULE(GameLoad)
 {
-    InitGlobals(Dependencies);
+    BindGlobalFunctions(Dependencies);
+
+    if (*GameStatePtr)
+    {
+        OnGameReload(*GameStatePtr);
+    }
+    else
+    {
+        *GameStatePtr = LoadGameState();
+    }
 
     game_module Result = {};
-    Result.InitGame = &InitGame;
     Result.UpdateGame = &UpdateGame;
     return Result;
 }

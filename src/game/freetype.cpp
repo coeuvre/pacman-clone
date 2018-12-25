@@ -31,15 +31,22 @@ struct ft_instance
     FT_Library Library;
 };
 
+static void
+BindFTMemoryCallback(FT_Memory Memory)
+{
+    Memory->user = 0;
+    Memory->alloc = &FTAllocate;
+    Memory->realloc = &FTReallocate;
+    Memory->free = &FTFree;
+}
+
 static ft_instance *
 LoadFTInstance()
 {
     ft_instance *Result = 0;
 
     FT_MemoryRec_ *Memory = (FT_MemoryRec_ *) AllocateMemory(sizeof(*Memory));
-    Memory->alloc = &FTAllocate;
-    Memory->realloc = &FTReallocate;
-    Memory->free = &FTFree;
+    BindFTMemoryCallback(Memory);
 
     FT_Library Library;
     if (FT_New_Library(Memory, &Library) == 0)

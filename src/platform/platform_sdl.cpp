@@ -122,6 +122,7 @@ GetRenderContext()
 #include "renderer/renderer_opengl.cpp"
 
 load_texture_fn *LoadTexture = &OpenGLLoadTexture;
+unload_texture_fn *UnloadTexture = &OpenGLUnloadTexture;
 
 static input *GlobalInput;
 
@@ -136,7 +137,7 @@ struct sdl_game_module
     bool IsLoaded;
     void *Library;
     game_load_fn *Load;
-    void *GameState;
+    game_state *GameState;
     game_module Callback;
 };
 
@@ -158,11 +159,7 @@ SDLLoadGameModule(sdl_game_module *GameModule, const game_dependencies *Dependen
 
     if (GameModule->IsLoaded)
     {
-        GameModule->Callback = GameModule->Load(Dependencies);
-        if (!GameModule->GameState)
-        {
-            GameModule->GameState = GameModule->Callback.InitGame();
-        }
+        GameModule->Callback = GameModule->Load(Dependencies, &GameModule->GameState);
     }
     else
     {
@@ -185,6 +182,7 @@ SDLRunMainLoop(SDL_Window *Window)
         .ReadEntireFile = ReadEntireFile,
         .GetRenderContext = &GetRenderContext,
         .LoadTexture = LoadTexture,
+        .UnloadTexture = UnloadTexture,
         .GetInput = &GetInput,
     };
 

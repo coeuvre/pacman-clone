@@ -2,9 +2,6 @@
 
 #include <glad/glad.h>
 
-#define TextureID(TextureHandle) ((GLuint) (TextureHandle))
-#define TextureHandle(TextureId) ((uint64_t) TextureId)
-
 static uint8_t *
 OpenGLConvertBitmap(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, int32_t Pitch, uint8_t *Bytes)
 {
@@ -98,14 +95,30 @@ static LOAD_TEXTURE(OpenGLLoadTexture)
         glBindTexture(GL_TEXTURE_2D, 0);
 
         Result = (texture *) AllocateMemory(sizeof(*Result));
+        Result->ReferenceCount = 1;
         Result->Width = Width;
         Result->Height = Height;
-        Result->Handle = TextureHandle(TextureID);
+        Result->Handle = (texture_handle) TextureID;
 
         DeallocateMemory(Pixels);
     }
 
     return Result;
+}
+
+static UNLOAD_TEXTURE(OpenGLUnloadTexture)
+{
+    if (Texture->ReferenceCount == 1)
+    {
+        GLuint TextureID = (GLuint) Texture->Handle;
+        glDeleteTextures(1, &TextureID);
+
+        DeallocateMemory(Texture);
+    }
+    else
+    {
+        DecreaseTextureReferenceCount(Texture);
+    }
 }
 
 typedef void* load_opengl_proc_fn(const char *name);
@@ -180,6 +193,15 @@ OpenGLInit(load_opengl_proc_fn *LoadOpenGLProcFn)
 
     gladLoadGLLoader(LoadOpenGLProcFn);
 
+    glClearColor(0.0F, 0.0F, 0.0F, 0.0F);
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_FRAMEBUFFER_SRGB);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+    glEnable(GL_MULTISAMPLE);
+
     GlobalOpenGLRenderContext.RenderTexturedRect2Program = OpenGLLoadRenderTexturedRect2Program();
 
     Result = GlobalOpenGLRenderContext.RenderTexturedRect2Program != 0;
@@ -207,16 +229,7 @@ OpenGLRender()
     render_context *RenderContext = GetRenderContext();
     render_command_buffer *CommandBuffer = &RenderContext->CommandBuffer;
 
-    glClearColor(0.0F, 0.0F, 0.0F, 0.0F);
     glViewport(0, 0, RenderContext->ViewportWidth, RenderContext->ViewportHeight);
-
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_FRAMEBUFFER_SRGB);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-    glEnable(GL_MULTISAMPLE);
 
     glClear(GL_COLOR_BUFFER_BIT);
 

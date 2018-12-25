@@ -99,6 +99,8 @@ OpenGLLoadRenderTexturedRect2Program()
 static void
 RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_context *RenderContext, textured_rect2 *Data)
 {
+    texture *Texture = Data->Texture;
+
     vec2 InvViewportDim = 1.0F / Vec2(RenderContext->ViewportWidth, RenderContext->ViewportHeight);
 
     vec2 DstRectDim = GetRect2Dim(Data->DstRect);
@@ -108,9 +110,9 @@ RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_contex
     vec2 Max = Hadamard(DstRectMax, InvViewportDim) * 2.0F - Vec2(1.0F, 1.0F);
 
     vec2 SrcRectDim = GetRect2Dim(Data->SrcRect);
-    vec2 SrcRectMin = Vec2(Data->SrcRect.Min.X, Data->Texture.Height - Data->SrcRect.Min.Y - SrcRectDim.Y);
-    vec2 SrcRectMax = Vec2(Data->SrcRect.Max.X, Data->Texture.Height - Data->SrcRect.Min.Y);
-    vec2 InvTextureDim = 1.0F / Vec2(Data->Texture.Width, Data->Texture.Height);
+    vec2 SrcRectMin = Vec2(Data->SrcRect.Min.X, Texture->Height - Data->SrcRect.Min.Y - SrcRectDim.Y);
+    vec2 SrcRectMax = Vec2(Data->SrcRect.Max.X, Texture->Height - Data->SrcRect.Min.Y);
+    vec2 InvTextureDim = 1.0F / Vec2(Texture->Width, Texture->Height);
     vec2 TexMin = Hadamard(SrcRectMin, InvTextureDim);
     vec2 TexMax = Hadamard(SrcRectMax, InvTextureDim);
 
@@ -153,10 +155,12 @@ RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_contex
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STREAM_DRAW);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, TextureID(Data->Texture.Handle));
+    glBindTexture(GL_TEXTURE_2D, (GLuint) Texture->Handle);
 
     glUseProgram(Program->ID);
 
     glBindVertexArray(Program->VAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    OpenGLUnloadTexture(Texture);
 }

@@ -8,10 +8,26 @@ typedef uint64_t texture_handle;
 
 struct texture
 {
+    uint32_t ReferenceCount;
     uint32_t Width;
     uint32_t Height;
     texture_handle Handle;
 };
+
+inline texture *
+IncreaseTextureReferenceCount(texture *Texture)
+{
+    ++Texture->ReferenceCount;
+    return Texture;
+}
+
+inline void
+DecreaseTextureReferenceCount(texture *Texture)
+{
+    Assert(Texture->ReferenceCount > 1);
+    --Texture->ReferenceCount;
+}
+
 
 enum render_command_data_type
 {
@@ -21,7 +37,7 @@ enum render_command_data_type
 struct textured_rect2
 {
     rect2 DstRect;
-    texture Texture;
+    texture *Texture;
     rect2 SrcRect;
 };
 
@@ -53,5 +69,8 @@ typedef GET_RENDER_CONTEXT(get_render_context_fn);
 //     4 - RGBA8 format
 #define LOAD_TEXTURE(name) texture *name(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, int32_t Pitch, uint8_t *Bytes)
 typedef LOAD_TEXTURE(load_texture_fn);
+
+#define UNLOAD_TEXTURE(name) void name(texture *Texture)
+typedef UNLOAD_TEXTURE(unload_texture_fn);
 
 #endif // RENDERER_API_H

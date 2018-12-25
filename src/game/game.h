@@ -17,25 +17,23 @@ struct game_dependencies
     // Renderer
     get_render_context_fn *GetRenderContext;
     load_texture_fn *LoadTexture;
+    unload_texture_fn *UnloadTexture;
 
     // Input
     get_input_fn *GetInput;
 };
 
-#define INIT_GAME(name) void *name()
-typedef INIT_GAME(init_game_fn);
+struct game_state;
 
-#define UPDATE_GAME(name) void name(void *GameState)
+#define UPDATE_GAME(name) void name(game_state *GameState)
 typedef UPDATE_GAME(update_game_fn);
 
 struct game_module
 {
-    init_game_fn *InitGame;
     update_game_fn *UpdateGame;
 };
 
-#define INIT_GAME_MODULE(name) game_module name(const game_dependencies *Dependencies)
-
+#define INIT_GAME_MODULE(name) game_module name(const game_dependencies *Dependencies, game_state **GameStatePtr)
 typedef INIT_GAME_MODULE(game_load_fn);
 
 #endif // GAME_GAME_H
