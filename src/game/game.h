@@ -22,18 +22,16 @@ struct game_dependencies
     get_input_fn *GetInput;
 };
 
-#define INIT_GAME_STATE(name) void *name()
+#define INIT_GAME(name) void *name()
+typedef INIT_GAME(init_game_fn);
 
-typedef INIT_GAME_STATE(init_game_state_fn);
-
-#define UPDATE_GAME_STATE(name) void name(void *GameState)
-
-typedef UPDATE_GAME_STATE(update_game_state_fn);
+#define UPDATE_GAME(name) void name(void *GameState)
+typedef UPDATE_GAME(update_game_fn);
 
 struct game_module
 {
-    init_game_state_fn *InitGameState;
-    update_game_state_fn *UpdateGameState;
+    init_game_fn *InitGame;
+    update_game_fn *UpdateGame;
 };
 
 #define INIT_GAME_MODULE(name) game_module name(const game_dependencies *Dependencies)

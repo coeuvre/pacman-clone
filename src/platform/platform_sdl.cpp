@@ -1,4 +1,4 @@
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #include "platform/platform.h"
 #include "game/game.h"
@@ -161,7 +161,7 @@ SDLLoadGameModule(sdl_game_module *GameModule, const game_dependencies *Dependen
         GameModule->Callback = GameModule->Load(Dependencies);
         if (!GameModule->GameState)
         {
-            GameModule->GameState = GameModule->Callback.InitGameState();
+            GameModule->GameState = GameModule->Callback.InitGame();
         }
     }
     else
@@ -228,7 +228,7 @@ SDLRunMainLoop(SDL_Window *Window)
             int WindowWidth, WindowHeight;
             SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
             OpenGLBeginFrame((uint32_t) WindowWidth, (uint32_t) WindowHeight);
-            GameModule.Callback.UpdateGameState(GameModule.GameState);
+            GameModule.Callback.UpdateGame(GameModule.GameState);
             OpenGLEndFrame();
 
             OpenGLRender();

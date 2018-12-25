@@ -7,7 +7,7 @@
 #define STBI_REALLOC(Pointer, NewSize) ReallocateMemory(Pointer, NewSize)
 #define STBI_FREE(Pointer) DeallocateMemory(Pointer)
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
+#include <stb_image.h>
 
 #include "renderer/renderer.cpp"
 
@@ -72,26 +72,8 @@ LoadTextureFromURL(const char *URL)
     return Result;
 }
 
-static void
-DoUpdateGameState(game_state *GameState)
-{
-    render_command_buffer *CommandBuffer = BeginRenderCommand();
-
-    input* Input = GetInput();
-    GameState->Counter += Input->DeltaTime;
-
-    if (GameState->TestTexture)
-    {
-        rect2 DstRect = Rect2MinSize(50.0F, 10.0F + GameState->Counter, 100.0F, 100.0F);
-        rect2 SrcRect = Rect2MinSize(0.0F, 0.0F, GameState->TestTexture->Width - 1.0F, GameState->TestTexture->Height - 1.0F);
-        PushTexturedRectangle2(CommandBuffer, &DstRect, GameState->TestTexture, &SrcRect);
-    }
-
-    EndRenderCommand(CommandBuffer);
-}
-
 static game_state *
-DoInitGameState()
+DoInitGame()
 {
     game_state *GameState = (game_state *) AllocateMemory(sizeof(*GameState));
     *GameState = {};
@@ -100,14 +82,32 @@ DoInitGameState()
     return GameState;
 }
 
-static INIT_GAME_STATE(InitGameState)
+static void
+DoUpdateGame(game_state *GameState)
 {
-    return DoInitGameState();
+    input* Input = GetInput();
+    GameState->Counter += Input->DeltaTime;
+
+    render_command_buffer *CommandBuffer = BeginRenderCommand();
+    {
+        if (GameState->TestTexture)
+        {
+            rect2 DstRect = Rect2MinSize(50.0F, 10.0F + GameState->Counter * 10.0F, 100.0F, 100.0F);
+            rect2 SrcRect = Rect2MinSize(0.0F, 0.0F, GameState->TestTexture->Width - 1.0F, GameState->TestTexture->Height - 1.0F);
+            PushTexturedRectangle2(CommandBuffer, &DstRect, GameState->TestTexture, &SrcRect);
+        }
+    }
+    EndRenderCommand(CommandBuffer);
 }
 
-static UPDATE_GAME_STATE(UpdateGameState)
+static INIT_GAME(InitGame)
 {
-    DoUpdateGameState((game_state *) GameState);
+    return DoInitGame();
+}
+
+static UPDATE_GAME(UpdateGame)
+{
+    DoUpdateGame((game_state *) GameState);
 }
 
 extern "C" EXPORT INIT_GAME_MODULE(GameLoad)
@@ -115,7 +115,7 @@ extern "C" EXPORT INIT_GAME_MODULE(GameLoad)
     InitGlobals(Dependencies);
 
     game_module Result = {};
-    Result.InitGameState = &InitGameState;
-    Result.UpdateGameState = &UpdateGameState;
+    Result.InitGame = &InitGame;
+    Result.UpdateGame = &UpdateGame;
     return Result;
 }
