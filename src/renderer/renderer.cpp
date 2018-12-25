@@ -1,5 +1,3 @@
-#include "renderer/renderer.h"
-
 static void *
 PushRenderCommandRaw(render_command_buffer *CommandBuffer, render_command_data_type Type, size_t DataSize)
 {
@@ -78,3 +76,5 @@ EndRenderCommand(render_command_buffer *CommandBuffer)
 {
 
 }
+
+#include "renderer/renderer_opengl.cpp"

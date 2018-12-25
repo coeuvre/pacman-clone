@@ -1,5 +1,3 @@
-#include "renderer/renderer.h"
-
 #include <glad/glad.h>
 
 static uint8_t *
@@ -74,7 +72,7 @@ OpenGLConvertBitmap(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, 
     return Result;
 }
 
-static LOAD_TEXTURE(OpenGLLoadTexture)
+texture *LoadTexture(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, int32_t Pitch, uint8_t *Bytes)
 {
     Assert(Bytes);
 
@@ -106,7 +104,7 @@ static LOAD_TEXTURE(OpenGLLoadTexture)
     return Result;
 }
 
-static UNLOAD_TEXTURE(OpenGLUnloadTexture)
+void UnloadTexture(texture *Texture)
 {
     if (Texture->ReferenceCount == 1)
     {

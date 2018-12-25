@@ -15,9 +15,5 @@ include_directories(SYSTEM ${FREETYPE_INCLUDE_DIRS})
 
 add_library(glad ${PROJECT_SOURCE_DIR}/lib/glad/src/glad.c)
 
-add_library(game SHARED src/game/game.cpp)
-target_link_libraries(game ${FREETYPE_LIBRARIES})
-
-add_executable(pacman src/platform/platform_sdl.cpp)
-add_dependencies(pacman game)
-target_link_libraries(pacman glad ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES})
+add_executable(pacman src/pacman.cpp)
+target_link_libraries(pacman glad ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${FREETYPE_LIBRARIES})

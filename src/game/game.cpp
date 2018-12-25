@@ -1,7 +1,3 @@
-#include "game.h"
-
-#include "game/globals.cpp"
-
 #define STBI_ONLY_PNG
 #define STBI_MALLOC(Size) AllocateMemory(Size)
 #define STBI_REALLOC(Pointer, NewSize) ReallocateMemory(Pointer, NewSize)
@@ -9,7 +5,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include "renderer/renderer.cpp"
 #include "game/freetype.cpp"
 
 struct bitmap
@@ -81,16 +76,8 @@ LoadTextureFromURL(const char *URL)
     return Result;
 }
 
-static void OnGameReload(game_state *GameState)
-{
-    if (GameState->FTInstance)
-    {
-        BindFTMemoryCallback(GameState->FTInstance->Memory);
-    }
-}
-
 static game_state *
-LoadGameState()
+GameLoad()
 {
     game_state *GameState = (game_state *) AllocateMemory(sizeof(*GameState));
     *GameState = {};
@@ -100,7 +87,7 @@ LoadGameState()
     return GameState;
 }
 
-static UPDATE_GAME(UpdateGame)
+static void GameUpdate(game_state *GameState)
 {
     input* Input = GetInput();
     GameState->Counter += Input->DeltaTime;
@@ -115,7 +102,7 @@ static UPDATE_GAME(UpdateGame)
         }
 
         font *Font = GameState->Font;
-        {
+        if (Font) {
             FT_Set_Pixel_Sizes(Font->Face, 0, 64);
             FT_Load_Char(Font->Face, 'F', FT_LOAD_RENDER);
             FT_GlyphSlot Slot = Font->Face->glyph;
@@ -127,22 +114,4 @@ static UPDATE_GAME(UpdateGame)
 
         EndRenderCommand(CommandBuffer);
     }
-}
-
-extern "C" EXPORT INIT_GAME_MODULE(GameLoad)
-{
-    BindGlobalFunctions(Dependencies);
-
-    if (*GameStatePtr)
-    {
-        OnGameReload(*GameStatePtr);
-    }
-    else
-    {
-        *GameStatePtr = LoadGameState();
-    }
-
-    game_module Result = {};
-    Result.UpdateGame = &UpdateGame;
-    return Result;
 }

@@ -54,4 +54,6 @@ ConcatString(char *Buffer, size_t BufferSize, const char *String1, const char *S
     {
         *Dst++ = 0;
     }
+
+    Assert(Dst <= End);
 }

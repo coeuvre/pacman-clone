@@ -1,32 +1,6 @@
 #include <SDL.h>
 
-#include "platform/platform.h"
-#include "game/game.h"
-
-#include "core/string.cpp"
-
-static ALLOCATE_MEMORY(SDLAllocateMemory)
-{
-    return malloc(Size);
-}
-
-allocate_memory_fn *AllocateMemory = &SDLAllocateMemory;
-
-static REALLOCATE_MEMORY(SDLReallocateMemory)
-{
-    return realloc(Pointer, NewSize);
-}
-
-reallocate_memory_fn *ReallocateMemory = &SDLReallocateMemory;
-
-static DEALLOCATE_MEMORY(SDLDeallocateMemory)
-{
-    free(Pointer);
-}
-
-deallocate_memory_fn *DeallocateMemory = &SDLDeallocateMemory;
-
-static READ_ENTIRE_FILE(SDLReadEntireFile)
+static uint8_t *ReadEntireFile(const char *URL, size_t *FileSize)
 {
     const char AssetPrefix[] = "assets://";
     // TODO: Use platform_api dependent assets path
@@ -109,85 +83,13 @@ static READ_ENTIRE_FILE(SDLReadEntireFile)
     return FileContent;
 }
 
-read_entire_file_fn *ReadEntireFile = &SDLReadEntireFile;
-
-static render_context *GlobalRenderContext;
-
-static render_context *
-GetRenderContext()
-{
-    return GlobalRenderContext;
-}
-
-#include "renderer/renderer_opengl.cpp"
-
-load_texture_fn *LoadTexture = &OpenGLLoadTexture;
-unload_texture_fn *UnloadTexture = &OpenGLUnloadTexture;
-
-static input *GlobalInput;
-
-static input *
-GetInput()
-{
-    return GlobalInput;
-}
-
-struct sdl_game_module
-{
-    bool IsLoaded;
-    void *Library;
-    game_load_fn *Load;
-    game_state *GameState;
-    game_module Callback;
-};
-
-static void
-SDLLoadGameModule(sdl_game_module *GameModule, const game_dependencies *Dependencies)
-{
-    if (GameModule->Library)
-    {
-        SDL_UnloadObject(GameModule->Library);
-    }
-
-    GameModule->Library = SDL_LoadObject("libgame.dylib");
-    if (GameModule->Library)
-    {
-        GameModule->Load = (game_load_fn *) SDL_LoadFunction(GameModule->Library, "GameLoad");
-    }
-
-    GameModule->IsLoaded = GameModule->Library && GameModule->Load;
-
-    if (GameModule->IsLoaded)
-    {
-        GameModule->Callback = GameModule->Load(Dependencies, &GameModule->GameState);
-    }
-    else
-    {
-        // SDLLoadGameModule failed
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s\n", SDL_GetError());
-    }
-}
-
 static void
 SDLRunMainLoop(SDL_Window *Window)
 {
-
     GlobalInput = (input *) AllocateMemory(sizeof(*GlobalInput));
     GlobalInput->DeltaTime = 0.016667F;
 
-    game_dependencies Dependencies = {
-        .AllocateMemory = AllocateMemory,
-        .ReallocateMemory = ReallocateMemory,
-        .DeallocateMemory = DeallocateMemory,
-        .ReadEntireFile = ReadEntireFile,
-        .GetRenderContext = &GetRenderContext,
-        .LoadTexture = LoadTexture,
-        .UnloadTexture = UnloadTexture,
-        .GetInput = &GetInput,
-    };
-
-    sdl_game_module GameModule = {};
-    SDLLoadGameModule(&GameModule, &Dependencies);
+    game_state *GameState = GameLoad();
 
     Uint64 Frequency = SDL_GetPerformanceFrequency();
     Uint64 CounterPerFrame = (Uint64) (GlobalInput->DeltaTime * Frequency);
@@ -214,20 +116,14 @@ SDLRunMainLoop(SDL_Window *Window)
             }
         }
 
-        // Hot reload game code every frame
-        // TODO: Only reload when the game code has been changed
-        SDLLoadGameModule(&GameModule, &Dependencies);
-        if (GameModule.IsLoaded)
-        {
-            int WindowWidth, WindowHeight;
-            SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
-            OpenGLBeginFrame((uint32_t) WindowWidth, (uint32_t) WindowHeight);
-            GameModule.Callback.UpdateGame(GameModule.GameState);
-            OpenGLEndFrame();
+        int WindowWidth, WindowHeight;
+        SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
+        OpenGLBeginFrame((uint32_t) WindowWidth, (uint32_t) WindowHeight);
+        GameUpdate(GameState);
+        OpenGLEndFrame();
 
-            OpenGLRender();
-            SDL_GL_SwapWindow(Window);
-        }
+        OpenGLRender();
+        SDL_GL_SwapWindow(Window);
 
         CurrentCounter = SDL_GetPerformanceCounter();
         Uint64 FrameCostCounter = CurrentCounter - LastCounter;

@@ -162,5 +162,5 @@ RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_contex
     glBindVertexArray(Program->VAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-    OpenGLUnloadTexture(Texture);
+    UnloadTexture(Texture);
 }

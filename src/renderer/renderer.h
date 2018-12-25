@@ -1,9 +1,6 @@
 #ifndef RENDERER_API_H
 #define RENDERER_API_H
 
-#include "core/defs.h"
-#include "core/math.h"
-
 typedef uint64_t texture_handle;
 
 struct texture
@@ -27,7 +24,6 @@ DecreaseTextureReferenceCount(texture *Texture)
     Assert(Texture->ReferenceCount > 1);
     --Texture->ReferenceCount;
 }
-
 
 enum render_command_data_type
 {
@@ -60,17 +56,17 @@ struct render_context
     uint32_t ViewportHeight;
 };
 
-#define GET_RENDER_CONTEXT(name) render_context *name();
-typedef GET_RENDER_CONTEXT(get_render_context_fn);
+static render_context *GetRenderContext();
 
 // Assuming the color is in sRGB space and is NOT pre-multiply by alpha.
 //
 // ChannelsPerPixel
 //     4 - RGBA8 format
-#define LOAD_TEXTURE(name) texture *name(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, int32_t Pitch, uint8_t *Bytes)
-typedef LOAD_TEXTURE(load_texture_fn);
+static texture *LoadTexture(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, int32_t Pitch, uint8_t *Bytes);
+static void UnloadTexture(texture *Texture);
 
-#define UNLOAD_TEXTURE(name) void name(texture *Texture)
-typedef UNLOAD_TEXTURE(unload_texture_fn);
+static render_command_buffer *BeginRenderCommand();
+static void EndRenderCommand(render_command_buffer *CommandBuffer);
+static void PushTexturedRectangle2(render_command_buffer *CommandBuffer, rect2 *DstRect, texture *Texture, rect2 *SrcRect);
 
 #endif // RENDERER_API_H
