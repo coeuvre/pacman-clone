@@ -13,7 +13,5 @@ include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/lib/glad/include)
 include_directories(SYSTEM ${SDL2_INCLUDE_DIRS})
 include_directories(SYSTEM ${FREETYPE_INCLUDE_DIRS})
 
-add_library(glad ${PROJECT_SOURCE_DIR}/lib/glad/src/glad.c)
-
-add_executable(pacman src/pacman.cpp)
-target_link_libraries(pacman glad ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${FREETYPE_LIBRARIES})
+add_executable(pacman src/pacman.cpp ${PROJECT_SOURCE_DIR}/lib/glad/src/glad.c)
+target_link_libraries(pacman ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${FREETYPE_LIBRARIES})
