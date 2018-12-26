@@ -34,7 +34,7 @@ PushTexturedRectangle2(render_command_buffer *CommandBuffer, rect2 *DstRect, tex
     }
     else
     {
-        Data->DstRect = Rectangle2MinMax(0, 0, RenderContext->ViewportWidth, RenderContext->ViewportHeight);
+        Data->DstRect = Rect2MinMax(0, 0, RenderContext->ViewportWidth, RenderContext->ViewportHeight);
     }
     Data->Texture = IncreaseTextureReferenceCount(Texture);
     if (SrcRect)
@@ -43,7 +43,7 @@ PushTexturedRectangle2(render_command_buffer *CommandBuffer, rect2 *DstRect, tex
     }
     else
     {
-        Data->SrcRect = Rectangle2MinMax(0, 0, Texture->Width, Texture->Height);
+        Data->SrcRect = Rect2MinMax(0, 0, Texture->Width, Texture->Height);
     }
 }
 

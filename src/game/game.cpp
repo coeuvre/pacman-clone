@@ -13,7 +13,7 @@ static game_state *
 GameLoad()
 {
     game_state *GameState = (game_state *) AllocateMemory(sizeof(*GameState));
-    *GameState = {};
+    GameState->Counter = 0.0F;
     GameState->TestTexture = LoadTextureFromURL("assets://test.png");
     GameState->FTInstance = LoadFTInstance();
     GameState->Font = LoadFontFromURL(GameState->FTInstance, "assets://test_font.otf");
@@ -37,13 +37,26 @@ static void GameUpdate(game_state *GameState)
         font *Font = GameState->Font;
         if (Font)
         {
-            FT_Set_Pixel_Sizes(Font->Face, 0, 64);
-            FT_Load_Char(Font->Face, 'F', FT_LOAD_RENDER);
-            FT_GlyphSlot Slot = Font->Face->glyph;
-            texture *Texture = LoadTexture(Slot->bitmap.width, Slot->bitmap.rows, 1, Slot->bitmap.pitch, Slot->bitmap.buffer);
-            rect2 DstRect = Rect2MinSize(10.0F, 10.0F, Texture->Width, Texture->Height);
-            PushTexturedRectangle2(CommandBuffer, &DstRect, Texture, 0);
-            UnloadTexture(Texture);
+            FT_UInt FontPixelSize = 16;
+            FT_Set_Pixel_Sizes(Font->Face, 0, FontPixelSize);
+            vec2 PenPos = Vec2(0, FontPixelSize);
+            const char *Text = "Pacman Rendering Text";
+            const char *At = Text;
+            while (*At)
+            {
+                FT_ULong Char = (FT_ULong) *At++;
+                FT_Load_Char(Font->Face, Char, FT_LOAD_RENDER);
+                FT_GlyphSlot Slot = Font->Face->glyph;
+                if (Slot->bitmap.buffer)
+                {
+                    texture *Texture = LoadTexture(Slot->bitmap.width, Slot->bitmap.rows, 1, Slot->bitmap.pitch, Slot->bitmap.buffer);
+                    vec2 PenOffset = Vec2(Slot->bitmap_left, -Slot->bitmap_top);
+                    rect2 DstRect = Rect2MinSize(PenPos + PenOffset, Vec2(Texture->Width, Texture->Height));
+                    PushTexturedRectangle2(CommandBuffer, &DstRect, Texture, 0);
+                    UnloadTexture(Texture);
+                }
+                PenPos += Vec2(Slot->advance.x >> 6, -(Slot->advance.y >> 6));
+            }
         }
 
         EndRenderCommand(CommandBuffer);

@@ -29,6 +29,22 @@ Vec2(scalar X, scalar Y)
 }
 
 inline vec2
+operator+(vec2 A, vec2 B)
+{
+    vec2 Result = {
+        .X = A.X + B.X,
+        .Y = A.Y + B.Y,
+    };
+    return Result;
+}
+
+inline void
+operator+=(vec2& A, vec2 B)
+{
+    A = A + B;
+}
+
+inline vec2
 operator-(vec2 A, vec2 B)
 {
     vec2 Result = {
@@ -81,7 +97,7 @@ struct rect2
 };
 
 inline rect2
-Rectangle2MinMax(scalar MinX, scalar MinY, scalar MaxX, scalar MaxY)
+Rect2MinMax(scalar MinX, scalar MinY, scalar MaxX, scalar MaxY)
 {
     rect2 Result = {
         .Min.X = MinX,
@@ -93,9 +109,19 @@ Rectangle2MinMax(scalar MinX, scalar MinY, scalar MaxX, scalar MaxY)
 }
 
 inline rect2
+Rect2MinSize(vec2 Min, vec2 Size)
+{
+    rect2 Result = {
+        .Min = Min,
+        .Max = Min + Size,
+    };
+    return Result;
+}
+
+inline rect2
 Rect2MinSize(scalar MinX, scalar MinY, scalar Width, scalar Height)
 {
-    rect2 Result = Rectangle2MinMax(MinX, MinY, MinX + Width, MinY + Height);
+    rect2 Result = Rect2MinMax(MinX, MinY, MinX + Width, MinY + Height);
     return Result;
 }
 
