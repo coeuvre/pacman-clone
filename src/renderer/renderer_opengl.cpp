@@ -248,6 +248,7 @@ OpenGLRender()
     textured_rect2 **TexturedRect2DataArray = (textured_rect2 **) AllocateMemory(sizeof(*TexturedRect2DataArray) * TexturedRect2DataCountMax);
     uint32_t TexturedRect2DataCount = 0;
 
+    PROFILE_OPEN_BLOCK("Sort");
     for (uint8_t *At = CommandBuffer->Base; At < CommandBuffer->At; NOOP)
     {
         render_command_header *Header = (render_command_header *) At;
@@ -272,6 +273,9 @@ OpenGLRender()
     if (TexturedRect2DataCount > 0)
     {
         qsort(TexturedRect2DataArray, TexturedRect2DataCount, sizeof(*TexturedRect2DataArray), CompareTexturedRect2Data);
+        PROFILE_CLOSE_BLOCK;
+
+        PROFILE_OPEN_BLOCK("RenderTexturedRect2");
         uint32_t Index = 0;
         while (Index < TexturedRect2DataCount)
         {
@@ -294,6 +298,7 @@ OpenGLRender()
 
             Index += Count;
         }
+        PROFILE_CLOSE_BLOCK;
     }
     DeallocateMemory(TexturedRect2DataArray);
 }

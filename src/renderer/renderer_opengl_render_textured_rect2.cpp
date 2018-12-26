@@ -99,8 +99,6 @@ OpenGLLoadRenderTexturedRect2Program()
 static void
 RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_context *RenderContext, textured_rect2 **DataArray, uint32_t Count)
 {
-    PROFILE_FUNCTION;
-
     texture *Texture = DataArray[0]->Texture;
 
     uint32_t VertexCount = 4 * Count;
