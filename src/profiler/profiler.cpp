@@ -1,5 +1,10 @@
 #include "profiler/profiler.h"
 
+ProfileBlockWatcher::~ProfileBlockWatcher()
+{
+    PROFILE_CLOSE_BLOCK;
+}
+
 profile_context *GlobalProfileContext;
 
 #define ProfileFrameCountMax 1024
@@ -88,14 +93,9 @@ ProfileBeginFrame()
     CurrentFrame->CurrentOpenBlock = Context->CurrentFrame->RootBlock;
 
     profile_block *CurrentOpenBlock = CurrentFrame->CurrentOpenBlock;
-    CurrentOpenBlock->FileName = 0;
+    *CurrentOpenBlock = {};
     CurrentOpenBlock->BeginCounter = GetPerformanceCounter();
     CurrentOpenBlock->EndCounter = CurrentFrame->CurrentOpenBlock->BeginCounter;
-    CurrentOpenBlock->FrameTime = 0;
-    CurrentOpenBlock->Parent = 0;
-    CurrentOpenBlock->FirstChild = 0;
-    CurrentOpenBlock->LastChild = 0;
-    CurrentOpenBlock->Next = 0;
 }
 
 static void
@@ -111,7 +111,7 @@ ProfileEndFrame()
 }
 
 static void
-ProfileOpenBlock(const char *FileName, int32_t LineNumber, const char *FunctionName)
+ProfileOpenBlock(const char *FileName, int32_t LineNumber, const char *FunctionName, const char *BlockName)
 {
     profile_frame *CurrentFrame = GetCurrentProfileFrame();
     profile_block *CurrentOpenBlock = CurrentFrame->CurrentOpenBlock;
@@ -120,6 +120,7 @@ ProfileOpenBlock(const char *FileName, int32_t LineNumber, const char *FunctionN
     NewOpenBlock->FileName = FileName;
     NewOpenBlock->LineNumber = LineNumber;
     NewOpenBlock->FunctionName = FunctionName;
+    NewOpenBlock->BlockName = BlockName;
     NewOpenBlock->BeginCounter = GetPerformanceCounter();
     NewOpenBlock->EndCounter = NewOpenBlock->BeginCounter;
     NewOpenBlock->FrameTime = 0;

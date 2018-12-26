@@ -65,10 +65,10 @@ OpenGLLoadRenderTexturedRect2Program()
 
         glBindVertexArray(Result->VAO);
         glBindBuffer(GL_ARRAY_BUFFER, Result->VBO);
-        glBufferData(GL_ARRAY_BUFFER, 0, NULL, GL_STREAM_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, 0, NULL, GL_DYNAMIC_DRAW);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Result->EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0, NULL, GL_STREAM_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0, NULL, GL_DYNAMIC_DRAW);
 
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE,
                               sizeof(RenderTexturedRect2VertexAttrib),
@@ -99,7 +99,7 @@ OpenGLLoadRenderTexturedRect2Program()
 static void
 RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_context *RenderContext, textured_rect2 **DataArray, uint32_t Count)
 {
-    PROFILE_OPEN_BLOCK;
+    PROFILE_FUNCTION;
 
     texture *Texture = DataArray[0]->Texture;
 
@@ -160,12 +160,12 @@ RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_contex
         };
 
         uint32_t IndexIndex = DataIndex * 6;
-        IndexArray[IndexIndex + 0] = 0;
-        IndexArray[IndexIndex + 1] = 1;
-        IndexArray[IndexIndex + 2] = 2;
-        IndexArray[IndexIndex + 3] = 0;
-        IndexArray[IndexIndex + 4] = 2;
-        IndexArray[IndexIndex + 5] = 3;
+        IndexArray[IndexIndex + 0] = VertexIndex + 0;
+        IndexArray[IndexIndex + 1] = VertexIndex + 1;
+        IndexArray[IndexIndex + 2] = VertexIndex + 2;
+        IndexArray[IndexIndex + 3] = VertexIndex + 0;
+        IndexArray[IndexIndex + 4] = VertexIndex + 2;
+        IndexArray[IndexIndex + 5] = VertexIndex + 3;
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, Program->VBO);
@@ -190,6 +190,4 @@ RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_contex
         textured_rect2 *Data = DataArray[DataIndex];
         UnloadTexture(Data->Texture);
     }
-
-    PROFILE_CLOSE_BLOCK;
 }

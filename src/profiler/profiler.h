@@ -6,6 +6,7 @@ struct profile_block
     const char *FileName;
     int32_t LineNumber;
     const char *FunctionName;
+    const char *BlockName;
 
     uint64_t BeginCounter;
     uint64_t EndCounter;
@@ -60,12 +61,21 @@ ProfileEndFrame();
 #define PROFILE_END_FRAME ProfileEndFrame()
 
 static void
-ProfileOpenBlock(const char *FileName, int32_t LineNumber, const char *FunctionName);
+ProfileOpenBlock(const char *FileName, int32_t LineNumber, const char *FunctionName, const char *BlockName);
 
 static void
 ProfileCloseBlock();
 
-#define PROFILE_OPEN_BLOCK ProfileOpenBlock(__FILE__, __LINE__, __func__)
+#define PROFILE_OPEN_BLOCK(Name) ProfileOpenBlock(__FILE__, __LINE__, __func__, Name)
 #define PROFILE_CLOSE_BLOCK ProfileCloseBlock()
+
+class ProfileBlockWatcher
+{
+public:
+    ~ProfileBlockWatcher();
+};
+
+#define PROFILE_BLOCK(Name) PROFILE_OPEN_BLOCK(#Name); ProfileBlockWatcher __Watcher__##Name = ProfileBlockWatcher()
+#define PROFILE_FUNCTION PROFILE_OPEN_BLOCK(__func__); ProfileBlockWatcher __Watcher__func__ = ProfileBlockWatcher()
 
 #endif // PROFILER_PROFILER_H

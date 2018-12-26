@@ -295,4 +295,5 @@ OpenGLRender()
             Index += Count;
         }
     }
+    DeallocateMemory(TexturedRect2DataArray);
 }

@@ -105,59 +105,69 @@ SDLRunMainLoop(SDL_Window *Window)
     uint64_t CounterPerFrame = (uint64_t) (GlobalInput->DeltaTime * Frequency);
     PROFILE_BEGIN_FRAME;
 
-    PROFILE_OPEN_BLOCK;
+    PROFILE_OPEN_BLOCK("GameLoad");
     game_state *GameState = GameLoad();
     PROFILE_CLOSE_BLOCK;
 
     bool IsRunning = true;
     while (IsRunning)
     {
-        PROFILE_OPEN_BLOCK;
-        SDL_Event Event;
-        while (SDL_PollEvent(&Event))
         {
-            switch (Event.type)
+            PROFILE_BLOCK(PollEvent);
+            SDL_Event Event;
+            while (SDL_PollEvent(&Event))
             {
-                case SDL_QUIT:
+                switch (Event.type)
                 {
-                    IsRunning = false;
-                    break;
-                }
+                    case SDL_QUIT:
+                    {
+                        IsRunning = false;
+                        break;
+                    }
 
-                default:
-                {
+                    default:
+                    {
+                    }
                 }
             }
         }
-        PROFILE_CLOSE_BLOCK;
 
-        PROFILE_OPEN_BLOCK;
-        int WindowWidth, WindowHeight;
-        SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
-        OpenGLBeginFrame((uint32_t) WindowWidth, (uint32_t) WindowHeight);
-        GameUpdate(GameState);
-        OpenGLEndFrame();
-        PROFILE_CLOSE_BLOCK;
-
-        PROFILE_OPEN_BLOCK;
-        OpenGLRender();
-        PROFILE_CLOSE_BLOCK;
-
-        PROFILE_OPEN_BLOCK;
-        SDL_GL_SwapWindow(Window);
-
-        profile_frame *CurrentProfileFrame = GetCurrentProfileFrame();
-        uint64_t CurrentCounter = GetPerformanceCounter();
-        uint64_t FrameCostCounter = CurrentCounter - CurrentProfileFrame->RootBlock->BeginCounter;
-        if (CounterPerFrame > FrameCostCounter)
         {
-            Uint32 SleepMS = (Uint32) ((CounterPerFrame - FrameCostCounter) * 1000 / Frequency);
-            if (SleepMS > 0)
+            PROFILE_BLOCK(GameUpdate);
+            int WindowWidth, WindowHeight;
+            SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
+            OpenGLBeginFrame((uint32_t) WindowWidth, (uint32_t) WindowHeight);
+            GameUpdate(GameState);
+            OpenGLEndFrame();
+        }
+
+        {
+            PROFILE_BLOCK(Render);
+            OpenGLRender();
+        }
+
+        {
+            PROFILE_BLOCK(Wait);
             {
-                SDL_Delay(SleepMS);
+                PROFILE_BLOCK(VSync);
+                SDL_GL_SwapWindow(Window);
+            }
+
+            {
+                PROFILE_BLOCK(Sleep);
+                profile_frame *CurrentProfileFrame = GetCurrentProfileFrame();
+                uint64_t CurrentCounter = GetPerformanceCounter();
+                uint64_t FrameCostCounter = CurrentCounter - CurrentProfileFrame->RootBlock->BeginCounter;
+                if (CounterPerFrame > FrameCostCounter)
+                {
+                    Uint32 SleepMS = (Uint32) ((CounterPerFrame - FrameCostCounter) * 1000 / Frequency);
+                    if (SleepMS > 0)
+                    {
+                        SDL_Delay(SleepMS);
+                    }
+                }
             }
         }
-        PROFILE_CLOSE_BLOCK;
 
         PROFILE_END_FRAME;
 
