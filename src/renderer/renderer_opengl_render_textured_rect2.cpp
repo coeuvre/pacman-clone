@@ -99,6 +99,8 @@ OpenGLLoadRenderTexturedRect2Program()
 static void
 RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_context *RenderContext, textured_rect2 *Data)
 {
+    PROFILE_OPEN_BLOCK;
+
     texture *Texture = Data->Texture;
 
     vec2 InvViewportDim = 1.0F / Vec2(RenderContext->ViewportWidth, RenderContext->ViewportHeight);
@@ -163,4 +165,6 @@ RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_contex
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
     UnloadTexture(Texture);
+
+    PROFILE_CLOSE_BLOCK;
 }

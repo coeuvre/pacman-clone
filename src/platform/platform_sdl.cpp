@@ -83,22 +83,36 @@ static uint8_t *ReadEntireFile(const char *URL, size_t *FileSize)
     return FileContent;
 }
 
+static uint64_t
+GetPerformanceFrequency()
+{
+    return SDL_GetPerformanceFrequency();
+}
+
+static uint64_t
+GetPerformanceCounter()
+{
+    return SDL_GetPerformanceCounter();
+}
+
 static void
 SDLRunMainLoop(SDL_Window *Window)
 {
     GlobalInput = (input *) AllocateMemory(sizeof(*GlobalInput));
     GlobalInput->DeltaTime = 0.016667F;
 
-    game_state *GameState = GameLoad();
+    uint64_t Frequency = GetPerformanceFrequency();
+    uint64_t CounterPerFrame = (uint64_t) (GlobalInput->DeltaTime * Frequency);
+    PROFILE_BEGIN_FRAME;
 
-    Uint64 Frequency = SDL_GetPerformanceFrequency();
-    Uint64 CounterPerFrame = (Uint64) (GlobalInput->DeltaTime * Frequency);
-    Uint64 CurrentCounter = SDL_GetPerformanceCounter();
-    Uint64 LastCounter = CurrentCounter;
+    PROFILE_OPEN_BLOCK;
+    game_state *GameState = GameLoad();
+    PROFILE_CLOSE_BLOCK;
 
     bool IsRunning = true;
     while (IsRunning)
     {
+        PROFILE_OPEN_BLOCK;
         SDL_Event Event;
         while (SDL_PollEvent(&Event))
         {
@@ -115,18 +129,26 @@ SDLRunMainLoop(SDL_Window *Window)
                 }
             }
         }
+        PROFILE_CLOSE_BLOCK;
 
+        PROFILE_OPEN_BLOCK;
         int WindowWidth, WindowHeight;
         SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
         OpenGLBeginFrame((uint32_t) WindowWidth, (uint32_t) WindowHeight);
         GameUpdate(GameState);
         OpenGLEndFrame();
+        PROFILE_CLOSE_BLOCK;
 
+        PROFILE_OPEN_BLOCK;
         OpenGLRender();
+        PROFILE_CLOSE_BLOCK;
+
+        PROFILE_OPEN_BLOCK;
         SDL_GL_SwapWindow(Window);
 
-        CurrentCounter = SDL_GetPerformanceCounter();
-        Uint64 FrameCostCounter = CurrentCounter - LastCounter;
+        profile_frame *CurrentProfileFrame = GetCurrentProfileFrame();
+        uint64_t CurrentCounter = GetPerformanceCounter();
+        uint64_t FrameCostCounter = CurrentCounter - CurrentProfileFrame->RootBlock->BeginCounter;
         if (CounterPerFrame > FrameCostCounter)
         {
             Uint32 SleepMS = (Uint32) ((CounterPerFrame - FrameCostCounter) * 1000 / Frequency);
@@ -135,11 +157,11 @@ SDLRunMainLoop(SDL_Window *Window)
                 SDL_Delay(SleepMS);
             }
         }
+        PROFILE_CLOSE_BLOCK;
 
-        CurrentCounter = SDL_GetPerformanceCounter();
-        float FrameTime = (CurrentCounter - LastCounter) * 1000.0F / Frequency;
-        LastCounter = CurrentCounter;
-        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "FrameTime %.2fms\n", FrameTime);
+        PROFILE_END_FRAME;
+
+        PROFILE_BEGIN_FRAME;
     }
 }
 

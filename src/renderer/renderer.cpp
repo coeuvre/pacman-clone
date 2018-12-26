@@ -50,7 +50,7 @@ PushTexturedRectangle2(render_command_buffer *CommandBuffer, rect2 *DstRect, tex
 static void
 InitRenderCommandBuffer(render_command_buffer *CommandBuffer)
 {
-    CommandBuffer->Size = KB(4);
+    CommandBuffer->Size = MB(1);
     CommandBuffer->Base = (uint8_t *) AllocateMemory(CommandBuffer->Size);
     CommandBuffer->At = CommandBuffer->Base;
 }
