@@ -97,64 +97,82 @@ OpenGLLoadRenderTexturedRect2Program()
 }
 
 static void
-RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_context *RenderContext, textured_rect2 *Data)
+RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_context *RenderContext, textured_rect2 **DataArray, uint32_t Count)
 {
     PROFILE_OPEN_BLOCK;
 
-    texture *Texture = Data->Texture;
+    texture *Texture = DataArray[0]->Texture;
 
-    vec2 InvViewportDim = 1.0F / Vec2(RenderContext->ViewportWidth, RenderContext->ViewportHeight);
+    uint32_t VertexCount = 4 * Count;
+    size_t VertexArraySize = sizeof(RenderTexturedRect2VertexAttrib) * VertexCount;
+    RenderTexturedRect2VertexAttrib *VertexArray = (RenderTexturedRect2VertexAttrib *) AllocateMemory(VertexArraySize);
 
-    vec2 DstRectDim = GetRect2Dim(Data->DstRect);
-    vec2 DstRectMin = Vec2(Data->DstRect.Min.X, RenderContext->ViewportHeight - Data->DstRect.Min.Y - DstRectDim.Y);
-    vec2 DstRectMax = Vec2(Data->DstRect.Max.X, RenderContext->ViewportHeight - Data->DstRect.Min.Y);
-    vec2 Min = Hadamard(DstRectMin, InvViewportDim) * 2.0F - Vec2(1.0F, 1.0F);
-    vec2 Max = Hadamard(DstRectMax, InvViewportDim) * 2.0F - Vec2(1.0F, 1.0F);
+    uint32_t IndexCount = 6 * Count;
+    size_t IndexArraySize = sizeof(GLuint) * IndexCount;
+    GLuint *IndexArray = (GLuint *) AllocateMemory(IndexArraySize);
 
-    vec2 SrcRectDim = GetRect2Dim(Data->SrcRect);
-    vec2 SrcRectMin = Vec2(Data->SrcRect.Min.X, Texture->Height - Data->SrcRect.Min.Y - SrcRectDim.Y);
-    vec2 SrcRectMax = Vec2(Data->SrcRect.Max.X, Texture->Height - Data->SrcRect.Min.Y);
-    vec2 InvTextureDim = 1.0F / Vec2(Texture->Width, Texture->Height);
-    vec2 TexMin = Hadamard(SrcRectMin, InvTextureDim);
-    vec2 TexMax = Hadamard(SrcRectMax, InvTextureDim);
+    for (uint32_t DataIndex = 0; DataIndex < Count; ++DataIndex)
+    {
+        textured_rect2 *Data = DataArray[DataIndex];
+        vec2 InvViewportDim = 1.0F / Vec2(RenderContext->ViewportWidth, RenderContext->ViewportHeight);
 
-    RenderTexturedRect2VertexAttrib Vertices[] = {
+        vec2 DstRectDim = GetRect2Dim(Data->DstRect);
+        vec2 DstRectMin = Vec2(Data->DstRect.Min.X, RenderContext->ViewportHeight - Data->DstRect.Min.Y - DstRectDim.Y);
+        vec2 DstRectMax = Vec2(Data->DstRect.Max.X, RenderContext->ViewportHeight - Data->DstRect.Min.Y);
+        vec2 Min = Hadamard(DstRectMin, InvViewportDim) * 2.0F - Vec2(1.0F, 1.0F);
+        vec2 Max = Hadamard(DstRectMax, InvViewportDim) * 2.0F - Vec2(1.0F, 1.0F);
+
+        vec2 SrcRectDim = GetRect2Dim(Data->SrcRect);
+        vec2 SrcRectMin = Vec2(Data->SrcRect.Min.X, Texture->Height - Data->SrcRect.Min.Y - SrcRectDim.Y);
+        vec2 SrcRectMax = Vec2(Data->SrcRect.Max.X, Texture->Height - Data->SrcRect.Min.Y);
+        vec2 InvTextureDim = 1.0F / Vec2(Texture->Width, Texture->Height);
+        vec2 TexMin = Hadamard(SrcRectMin, InvTextureDim);
+        vec2 TexMax = Hadamard(SrcRectMax, InvTextureDim);
+
+        uint32_t VertexIndex = DataIndex * 4;
+
         // Bottom Left
-        {
+        VertexArray[VertexIndex + 0] = {
             .Position = { Min.X, Min.Y },
             .TexCoord = { TexMin.X, TexMin.Y },
             .Color = { 1.0F, 1.0F, 1.0F, 1.0F },
-        },
+        };
+
         // Bottom Right
-        {
+        VertexArray[VertexIndex + 1] = {
             .Position = { Max.X, Min.Y },
             .TexCoord = { TexMax.X, TexMin.Y },
             .Color = { 1.0F, 1.0F, 1.0F, 1.0F },
-        },
+        };
+
         // Top Right
-        {
-            .Position = { Max.X, Max.Y },
-            .TexCoord = { TexMax.X, TexMax.Y },
-            .Color = { 1.0F, 1.0F, 1.0F, 1.0F },
-        },
+        VertexArray[VertexIndex + 2] = {
+            .Position = {Max.X, Max.Y},
+            .TexCoord = {TexMax.X, TexMax.Y},
+            .Color = {1.0F, 1.0F, 1.0F, 1.0F},
+        };
+
         // Top Left
-        {
+        VertexArray[VertexIndex + 3] = {
             .Position = { Min.X, Max.Y },
             .TexCoord = { TexMin.X, TexMax.Y },
             .Color = { 1.0F, 1.0F, 1.0F, 1.0F },
-        },
-    };
+        };
 
-    GLuint Indices[] = {
-        0, 1, 2,
-        0, 2, 3,
-    };
+        uint32_t IndexIndex = DataIndex * 6;
+        IndexArray[IndexIndex + 0] = 0;
+        IndexArray[IndexIndex + 1] = 1;
+        IndexArray[IndexIndex + 2] = 2;
+        IndexArray[IndexIndex + 3] = 0;
+        IndexArray[IndexIndex + 4] = 2;
+        IndexArray[IndexIndex + 5] = 3;
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, Program->VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, VertexArraySize, VertexArray, GL_DYNAMIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Program->EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STREAM_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, IndexArraySize, IndexArray, GL_DYNAMIC_DRAW);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, (GLuint) Texture->Handle);
@@ -162,9 +180,16 @@ RenderTexturedRect2(opengl_render_textured_rect2_program *Program, render_contex
     glUseProgram(Program->ID);
 
     glBindVertexArray(Program->VAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, IndexCount, GL_UNSIGNED_INT, 0);
 
-    UnloadTexture(Texture);
+    DeallocateMemory(VertexArray);
+    DeallocateMemory(IndexArray);
+
+    for (uint32_t DataIndex = 0; DataIndex < Count; ++DataIndex)
+    {
+        textured_rect2 *Data = DataArray[DataIndex];
+        UnloadTexture(Data->Texture);
+    }
 
     PROFILE_CLOSE_BLOCK;
 }

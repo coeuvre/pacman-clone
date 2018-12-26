@@ -1,5 +1,8 @@
 #include <glad/glad.h>
 
+#define TextureID(Handle) ((GLuint) Handle)
+#define TextureHandle(TextureID) ((texture_handle) TextureID)
+
 static uint8_t *
 OpenGLConvertBitmap(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel, int32_t Pitch, uint8_t *Bytes)
 {
@@ -96,7 +99,7 @@ texture *LoadTexture(uint32_t Width, uint32_t Height, uint32_t ChannelsPerPixel,
         Result->ReferenceCount = 1;
         Result->Width = Width;
         Result->Height = Height;
-        Result->Handle = (texture_handle) TextureID;
+        Result->Handle = TextureHandle(TextureID);
 
         DeallocateMemory(Pixels);
     }
@@ -221,6 +224,16 @@ OpenGLEndFrame()
 
 }
 
+static int
+CompareTexturedRect2Data(const void *P1, const void *P2)
+{
+    textured_rect2 *A = *(textured_rect2 **) P1;
+    textured_rect2 *B = *(textured_rect2 **) P2;
+
+    int Result = (int) TextureID(A->Texture->Handle) - (int) TextureID(B->Texture->Handle);
+    return Result;
+}
+
 static void
 OpenGLRender()
 {
@@ -230,6 +243,10 @@ OpenGLRender()
     glViewport(0, 0, RenderContext->ViewportWidth, RenderContext->ViewportHeight);
 
     glClear(GL_COLOR_BUFFER_BIT);
+
+#define TexturedRect2DataCountMax 40960
+    textured_rect2 **TexturedRect2DataArray = (textured_rect2 **) AllocateMemory(sizeof(*TexturedRect2DataArray) * TexturedRect2DataCountMax);
+    uint32_t TexturedRect2DataCount = 0;
 
     for (uint8_t *At = CommandBuffer->Base; At < CommandBuffer->At; NOOP)
     {
@@ -242,11 +259,40 @@ OpenGLRender()
             {
                 textured_rect2 *Data = (textured_rect2 *) At;
                 At += sizeof(*Data);
-                RenderTexturedRect2(GlobalOpenGLRenderContext.RenderTexturedRect2Program, RenderContext, Data);
+
+                Assert(TexturedRect2DataCount < TexturedRect2DataCountMax);
+                TexturedRect2DataArray[TexturedRect2DataCount++] = Data;
                 break;
             }
 
             default: INVALID_CODE_PATH;
+        }
+    }
+
+    if (TexturedRect2DataCount > 0)
+    {
+        qsort(TexturedRect2DataArray, TexturedRect2DataCount, sizeof(*TexturedRect2DataArray), CompareTexturedRect2Data);
+        uint32_t Index = 0;
+        while (Index < TexturedRect2DataCount)
+        {
+            GLuint TextureID = TextureID(TexturedRect2DataArray[Index]->Texture->Handle);
+            uint32_t Count = 1;
+            while (Index + Count < TexturedRect2DataCount)
+            {
+                textured_rect2 *Data = TexturedRect2DataArray[Index + Count];
+                if (TextureID(Data->Texture->Handle) != TextureID)
+                {
+                    break;
+                }
+                else
+                {
+                    ++Count;
+                }
+            }
+
+            RenderTexturedRect2(GlobalOpenGLRenderContext.RenderTexturedRect2Program, RenderContext, &TexturedRect2DataArray[Index], Count);
+
+            Index += Count;
         }
     }
 }
