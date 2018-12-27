@@ -105,10 +105,7 @@ SDLRunMainLoop(SDL_Window *Window)
     uint64_t CounterPerFrame = (uint64_t) (GlobalInput->DeltaTime * Frequency);
     PROFILE_BEGIN_FRAME;
 
-    PROFILE_OPEN_BLOCK("GameLoad");
     game_state *GameState = GameLoad();
-    PROFILE_CLOSE_BLOCK;
-
     bool IsRunning = true;
     while (IsRunning)
     {

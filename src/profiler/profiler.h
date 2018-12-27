@@ -66,7 +66,8 @@ ProfileOpenBlock(const char *FileName, int32_t LineNumber, const char *FunctionN
 static void
 ProfileCloseBlock();
 
-#define PROFILE_OPEN_BLOCK(Name) ProfileOpenBlock(__FILE__, __LINE__, __func__, Name)
+#define PROFILE_OPEN_BLOCK_(Name) ProfileOpenBlock(__FILE__, __LINE__, __func__, Name)
+#define PROFILE_OPEN_BLOCK(Name) PROFILE_OPEN_BLOCK_(#Name)
 #define PROFILE_CLOSE_BLOCK ProfileCloseBlock()
 
 class ProfileBlockWatcher
@@ -75,7 +76,7 @@ public:
     ~ProfileBlockWatcher();
 };
 
-#define PROFILE_BLOCK(Name) PROFILE_OPEN_BLOCK(#Name); ProfileBlockWatcher __Watcher__##Name = ProfileBlockWatcher()
-#define PROFILE_FUNCTION PROFILE_OPEN_BLOCK(__func__); ProfileBlockWatcher __Watcher__func__ = ProfileBlockWatcher()
+#define PROFILE_BLOCK(Name) PROFILE_OPEN_BLOCK_(#Name); ProfileBlockWatcher __Watcher__##Name = ProfileBlockWatcher()
+#define PROFILE_FUNCTION PROFILE_OPEN_BLOCK_(__func__); ProfileBlockWatcher __Watcher__func__ = ProfileBlockWatcher()
 
 #endif // PROFILER_PROFILER_H
